@@ -197,9 +197,13 @@ public class TreatmentsPlugin extends PluginBase implements TreatmentsInterface 
     public void initializeData(long range) {
         // Initialize the temporary basal data
         initializeTempBasalData(range);
+        // Initialize the treatment data
         initializeTreatmentData(range);
+        // Initialize the extended bolus data
         initializeExtendedBolusData(range);
+        // Initialize the temporary target data
         initializeTempTargetData(range);
+        // Initialize the profile switch data
         initializeProfileSwitchData(range);
     }
 
@@ -247,6 +251,7 @@ public class TreatmentsPlugin extends PluginBase implements TreatmentsInterface 
     private void initializeProfileSwitchData(long range) {
         // Get the logger
         getAapsLogger().debug(LTag.DATATREATMENTS, "initializeProfileSwitchData");
+        // Acquire the lock to the profiles
         synchronized (profiles) {
             profiles.reset().add(MainApp.getDbHelper().getProfileSwitchData(DateUtil.now() - range, false));
         }
@@ -355,6 +360,7 @@ public class TreatmentsPlugin extends PluginBase implements TreatmentsInterface 
 
         // Get the current time
         long time = System.currentTimeMillis();
+        // Acquire the lock to the treatments
         synchronized (treatments) {
 //            getAapsLogger().debug(MedtronicHistoryData.doubleBolusDebug, LTag.DATATREATMENTS, "DoubleBolusDebug: AllTreatmentsInDb: " + new GsonBuilder().excludeFieldsWithoutExposeAnnotation().create().toJson(treatments));
 
@@ -374,6 +380,7 @@ public class TreatmentsPlugin extends PluginBase implements TreatmentsInterface 
     public List<Treatment> getCarbTreatments5MinBackFromHistory(long time) {
         // Create a new list of treatments
         List<Treatment> in5minback = new ArrayList<>();
+        // Acquire the lock to the treatments
         synchronized (treatments) {
             // Iterate over all treatments
             for (Treatment t : treatments) {
@@ -381,10 +388,12 @@ public class TreatmentsPlugin extends PluginBase implements TreatmentsInterface 
                 if (!t.isValid)
                     // If not, continue to the next treatment
                     continue;
+                // Check if the treatment is in the 5 minute back from history window
                 if (t.date <= time && t.date > time - 5 * 60 * 1000 && t.carbs > 0)
                     // If it is, add it to the list of treatments in 5 minutes back
                     in5minback.add(t);
             }
+            // Return the list of treatments in 5 minutes back
             return in5minback;
         }
     }
@@ -425,13 +434,18 @@ public class TreatmentsPlugin extends PluginBase implements TreatmentsInterface 
     }
 
     public long getLastCarbTime() {
+        // Get the last treatment from the service
         Treatment last = getService().getLastCarb();
         // If last is null, return 0
         if (last == null) {
+            // Log that nothing was found
             getAapsLogger().debug(LTag.DATATREATMENTS, "Last Carb time: NOTHING FOUND");
+            // Return 0
             return 0;
         } else {
+            // Log the last treatment date
             getAapsLogger().debug(LTag.DATATREATMENTS, "Last Carb time: " + dateUtil.dateAndTimeString(last.date));
+            // Return the last treatment date
             return last.date;
         }
     }
@@ -573,7 +587,9 @@ public class TreatmentsPlugin extends PluginBase implements TreatmentsInterface 
         for (long i = time - range(); i < time; i += T.mins(5).msecs()) {
             // Get the profile at the current time
             Profile profile = profileFunction.getProfile(i);
+            // If the profile is null, continue to the next 5 minute chunk
             if (profile == null) continue;
+            // Get the basal rate from the profile at the current time
             double basal = profile.getBasal(i);
             // Get the running temporary basal rate from the history
             TemporaryBasal runningTBR = getTempBasalFromHistory(i);
@@ -665,12 +681,16 @@ public class TreatmentsPlugin extends PluginBase implements TreatmentsInterface 
     public TemporaryBasal getTempBasalFromHistory(long time) {
         // Get the real temporary basal from history
         TemporaryBasal tb = getRealTempBasalFromHistory(time);
+        // If the temporary basal is not null, return it
         if (tb != null)
             return tb;
+        // Get the extended bolus from history
         ExtendedBolus eb = getExtendedBolusFromHistory(time);
+        // If the extended bolus is not null and the active pump is faking temps by extended boluses
         if (eb != null && activePlugin.getActivePump().isFakingTempsByExtendedBoluses())
             // Return a temporary basal with the extended bolus
             return new TemporaryBasal(eb);
+        // Return null
         return null;
     }
 
@@ -930,6 +950,7 @@ public class TreatmentsPlugin extends PluginBase implements TreatmentsInterface 
     public void doProfileSwitch(final int duration, final int percentage, final int timeShift) {
         // Get the profile switch from history
         ProfileSwitch profileSwitch = getProfileSwitchFromHistory(System.currentTimeMillis());
+        // If profile switch exists
         if (profileSwitch != null) {
             // Create a new profile switch
             profileSwitch = new ProfileSwitch(getInjector());

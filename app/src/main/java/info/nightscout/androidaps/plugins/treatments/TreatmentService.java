@@ -59,6 +59,7 @@ import io.reactivex.schedulers.Schedulers;
 
 public class TreatmentService extends OrmLiteBaseService<DatabaseHelper> {
 
+    // Inject AAPSLogger
     @Inject AAPSLogger aapsLogger;
     @Inject FabricPrivacy fabricPrivacy;
     @Inject RxBusWrapper rxBus;
@@ -72,19 +73,28 @@ public class TreatmentService extends OrmLiteBaseService<DatabaseHelper> {
     private static ScheduledFuture<?> scheduledTreatmentEventPost = null;
 
     public TreatmentService(HasAndroidInjector injector) {
+        // Inject this object
         injector.androidInjector().inject(this);
         onCreate();
         dbInitialize();
         disposable.add(rxBus
+                // Subscribe to the RxBus events of type EventNsTreatment
                 .toObservable(EventNsTreatment.class)
+                // Observe the events on the IO thread
                 .observeOn(Schedulers.io())
+                // Subscribe to the events
                 .subscribe(event -> {
+                    // Get the mode of the event
                     int mode = event.getMode();
+                    // Get the payload of the event
                     JSONObject payload = event.getPayload();
 
+                    // If the mode is ADD or UPDATE
                     if (mode == EventNsTreatment.Companion.getADD() || mode == EventNsTreatment.Companion.getUPDATE()) {
+                        // Create a treatment from the payload
                         this.createTreatmentFromJsonIfNotExists(payload);
                     } else { // EventNsTreatment.REMOVE
+                        // Delete the treatment from the database
                         this.deleteNS(payload);
                     }
                 }, fabricPrivacy::logException)
@@ -98,24 +108,31 @@ public class TreatmentService extends OrmLiteBaseService<DatabaseHelper> {
      * It is implemented to be able to late initialize separate plugins of the application.
      */
     protected void dbInitialize() {
+        // Get the helper
         DatabaseHelper helper = OpenHelperManager.getHelper(this, DatabaseHelper.class);
         int newVersion = helper.getNewVersion();
         int oldVersion = helper.getOldVersion();
 
+        // If the old version is greater than the new version
         if (oldVersion > newVersion) {
+            // Call the onDowngrade method
             onDowngrade(this.getConnectionSource(), oldVersion, newVersion);
         } else {
+            // Call the onUpgrade method
             onUpgrade(this.getConnectionSource(), oldVersion, newVersion);
         }
     }
 
     public TreatmentDaoWrapper getDao() {
+        // Try to create a Dao for Treatment.class
         try {
             return new TreatmentDaoWrapper(DaoManager.createDao(this.getConnectionSource(), Treatment.class));
         } catch (SQLException e) {
+            // If it fails, log the error
             aapsLogger.error("Cannot create Dao for Treatment.class");
         }
 
+        // Return null if it fails
         return null;
     }
 
@@ -123,37 +140,47 @@ public class TreatmentService extends OrmLiteBaseService<DatabaseHelper> {
         private final Dao<Treatment, Long> wrapped;
 
         TreatmentDaoWrapper(Dao<Treatment, Long> wrapped) {
+            // Set the wrapped dao
             this.wrapped = wrapped;
         }
 
         public void executeRaw(String statement, String... arguments) throws SQLException {
+            // Execute the statement
             wrapped.executeRaw(statement, arguments);
         }
 
         public List<Treatment> queryForAll() throws SQLException {
+            // Return the list of treatments
             return wrapped.queryForAll();
         }
 
         public void delete(Treatment data) throws SQLException {
+            // Delete the treatment from the wrapped database
             wrapped.delete(data);
+            // Enqueue the treatment for upload to Open Humans
             openHumansUploader.enqueueTreatment(data, true);
         }
 
         public void create(Treatment data) throws SQLException {
+            // Call the wrapped create method
             wrapped.create(data);
             openHumansUploader.enqueueTreatment(data);
         }
 
         public Treatment queryForId(long id) throws SQLException {
+            // Call the queryForId method of the wrapped object
             return wrapped.queryForId(id);
         }
 
         public void update(Treatment data) throws SQLException {
+            // Update the treatment in the wrapped database
             wrapped.update(data);
+            // Enqueue the treatment to be uploaded to Open Humans
             openHumansUploader.enqueueTreatment(data);
         }
 
         public QueryBuilder<Treatment, Long> queryBuilder() {
+            // Return the query builder
             return wrapped.queryBuilder();
         }
 
@@ -162,63 +189,83 @@ public class TreatmentService extends OrmLiteBaseService<DatabaseHelper> {
         }
 
         public long countOf() throws SQLException {
+            // Return the count of the wrapped object
             return wrapped.countOf();
         }
     }
 
     @Override
     public void onCreate() {
+        // Call the superclass method
         super.onCreate();
         try {
             aapsLogger.info(LTag.DATATREATMENTS, "onCreate");
             TableUtils.createTableIfNotExists(this.getConnectionSource(), Treatment.class);
         } catch (SQLException e) {
+            // Log the error
             aapsLogger.error("Can't create database", e);
+            // Throw an exception
             throw new RuntimeException(e);
         }
     }
 
     public void onUpgrade(ConnectionSource connectionSource, int oldVersion, int newVersion) {
         if (oldVersion == 7 && newVersion == 8) {
+            // Log the upgrade
             aapsLogger.debug("Upgrading database from v7 to v8");
             try {
+                // Drop the table
                 TableUtils.dropTable(connectionSource, Treatment.class, true);
+                // Create the table
                 TableUtils.createTableIfNotExists(connectionSource, Treatment.class);
             } catch (SQLException e) {
+                // Log the error
                 aapsLogger.error("Can't create database", e);
+                // Throw an exception
                 throw new RuntimeException(e);
             }
         } else if (oldVersion == 8 && newVersion == 9) {
+            // Log the upgrade
             aapsLogger.debug("Upgrading database from v8 to v9");
             try {
                 getDao().executeRaw("ALTER TABLE `" + Treatment.TABLE_TREATMENTS + "` ADD COLUMN boluscalc STRING;");
             } catch (SQLException e) {
+                // Log the error
                 aapsLogger.error("Unhandled exception", e);
             }
         } else {
+            // Log the upgrade
             aapsLogger.info(LTag.DATATREATMENTS, "onUpgrade");
 //            this.resetFood();
         }
     }
 
     public void onDowngrade(ConnectionSource connectionSource, int oldVersion, int newVersion) {
+        // If the old version is 9 and the new version is 8
         if (oldVersion == 9 && newVersion == 8) {
+            // Try to execute the raw SQL statement
             try {
                 getDao().executeRaw("ALTER TABLE `" + Treatment.TABLE_TREATMENTS + "` DROP COLUMN boluscalc STRING;");
             } catch (SQLException e) {
+                // If an exception is thrown, log it
                 aapsLogger.error("Unhandled exception", e);
             }
         }
     }
 
     public void resetTreatments() {
+        // Try to drop the table
         try {
             TableUtils.dropTable(this.getConnectionSource(), Treatment.class, true);
+            // Create the table
             TableUtils.createTableIfNotExists(this.getConnectionSource(), Treatment.class);
+            // Update the earliestDataChange
             DatabaseHelper.updateEarliestDataChange(0);
         } catch (SQLException e) {
+            // Log the exception
             aapsLogger.error("Unhandled exception", e);
         }
+        // Schedule the treatment change
         scheduleTreatmentChange(null, true);
     }
 
@@ -267,22 +314,31 @@ public class TreatmentService extends OrmLiteBaseService<DatabaseHelper> {
      */
     public void scheduleTreatmentChange(@Nullable final Treatment treatment, boolean runImmediately) {
         if (runImmediately) {
+            // Log the event
             aapsLogger.debug(LTag.DATATREATMENTS, "Firing EventReloadTreatmentData");
+            // Send the event
             rxBus.send(new EventReloadTreatmentData(new EventTreatmentChange(treatment)));
+            // If earliestDataChange is not null
             if (DatabaseHelper.earliestDataChange != null) {
+                // Log the event
                 aapsLogger.debug(LTag.DATATREATMENTS, "Firing EventNewHistoryData");
+                // Send the event
                 rxBus.send(new EventNewHistoryData(DatabaseHelper.earliestDataChange));
             }
+            // Reset earliestDataChange
             DatabaseHelper.earliestDataChange = null;
         } else {
+            // Schedule the event
             this.scheduleEvent(new EventReloadTreatmentData(new EventTreatmentChange(treatment)), treatmentEventWorker, new ICallback() {
                 @Override
                 public void setPost(ScheduledFuture<?> post) {
+                    // Set the scheduled treatment event post
                     scheduledTreatmentEventPost = post;
                 }
 
                 @Override
                 public ScheduledFuture<?> getPost() {
+                    // Return the scheduled treatment event post
                     return scheduledTreatmentEventPost;
                 }
             });
@@ -290,21 +346,27 @@ public class TreatmentService extends OrmLiteBaseService<DatabaseHelper> {
     }
 
     public List<Treatment> getTreatmentData() {
+        // Try to get all treatments from the database
         try {
             return this.getDao().queryForAll();
         } catch (SQLException e) {
+            // If an exception is thrown, log it
             aapsLogger.error("Unhandled exception", e);
         }
 
+        // Return an empty list
         return new ArrayList<>();
     }
 
     public long count() {
+        // Try to get the count of all treatments
         try {
             return this.getDao().countOf();
         } catch (SQLException e) {
+            // If an exception is thrown, log it
             aapsLogger.error("Unhandled exception", e);
         }
+        // Return 0L
         return 0L;
     }
 
@@ -598,8 +660,10 @@ public class TreatmentService extends OrmLiteBaseService<DatabaseHelper> {
 
 
     public static boolean isSame(Double d1, Double d2) {
+        // Create a variable to store the difference
         double diff = d1 - d2;
 
+        // Check if the difference is less than 0.00001
         return (Math.abs(diff) <= 0.00001);
     }
 
@@ -607,21 +671,27 @@ public class TreatmentService extends OrmLiteBaseService<DatabaseHelper> {
 
         Treatment record = null;
 
+        // If pumpId is greater than 0, get the record by pumpId
         if (pumpId > 0) {
 
+            // Get the record by pumpId
             record = getPumpRecordById(pumpId);
 
+            // If record is not null, return it
             if (record != null) {
                 return record;
             }
         }
 
+        // Try to get the record by id
         try {
             record = getDao().queryForId(date);
         } catch (SQLException ex) {
+            // If there is an exception, log it
             aapsLogger.error("Error getting entry by id ({}", date);
         }
 
+        // Return the record
         return record;
 
     }
@@ -633,19 +703,31 @@ public class TreatmentService extends OrmLiteBaseService<DatabaseHelper> {
      */
     @Nullable
     public Treatment getPumpRecordById(long pumpId) {
+        // Try to get the treatment record from the database
         try {
+            // Create a query builder for the Treatment table
             QueryBuilder<Treatment, Long> queryBuilder = getDao().queryBuilder();
+            // Create a Where clause for the query
             Where where = queryBuilder.where();
+            // Add the condition for the pumpId
             where.eq("pumpId", pumpId);
+            // Order the query by date, descending
             queryBuilder.orderBy("date", true);
 
+            // Execute the query
             List<Treatment> result = getDao().query(queryBuilder.prepare());
+            // Check if the result is empty
             if (result.isEmpty())
+                // If it is, return null
                 return null;
+            // Check if the result has more than one element
             if (result.size() > 1)
+                // If it does, log a warning
                 aapsLogger.warn(LTag.DATATREATMENTS, "Multiple records with the same pump id found (returning first one): " + result.toString());
+            // Return the first element of the result
             return result.get(0);
         } catch (SQLException e) {
+            // If there was an exception, throw a RuntimeException
             throw new RuntimeException(e);
         }
     }
@@ -655,21 +737,34 @@ public class TreatmentService extends OrmLiteBaseService<DatabaseHelper> {
      */
     @Nullable
     public Treatment getLastBolus(boolean excludeSMB) {
+        // Try to get the last bolus
         try {
+            // Create a query builder for treatments
             QueryBuilder<Treatment, Long> queryBuilder = getDao().queryBuilder();
+            // Create a where clause
             Where where = queryBuilder.where();
+            // Check if the insulin is greater than 0
             where.gt("insulin", 0);
+            // Check if the date is less than or equal to now
             where.and().le("date", DateUtil.now());
+            // Check if the treatment is valid
             where.and().eq("isValid", true);
+            // If excludeSMB is true, check if the treatment is not SMB
             if (excludeSMB) where.and().eq("isSMB", false);
+            // Order by date, descending
             queryBuilder.orderBy("date", false);
+            // Limit to 1
             queryBuilder.limit(1L);
 
+            // Query the treatments
             List<Treatment> result = getDao().query(queryBuilder.prepare());
+            // If the list is empty, return null
             if (result.isEmpty())
                 return null;
+            // Return the first element of the list
             return result.get(0);
         } catch (SQLException e) {
+            // If there is an exception, throw a runtime exception
             throw new RuntimeException(e);
         }
     }
@@ -679,25 +774,38 @@ public class TreatmentService extends OrmLiteBaseService<DatabaseHelper> {
      */
     @Nullable
     public Treatment getLastCarb() {
+        // Try to get the DAO
         try {
+            // Create a new QueryBuilder for Treatment
             QueryBuilder<Treatment, Long> queryBuilder = getDao().queryBuilder();
+            // Create a new Where clause
             Where where = queryBuilder.where();
+            // Check if the carbs are greater than 0
             where.gt("carbs", 0);
+            // Check if the date is less than or equal to now
             where.and().le("date", DateUtil.now());
+            // Check if the treatment is valid
             where.and().eq("isValid", true);
+            // Order by date, descending
             queryBuilder.orderBy("date", false);
+            // Limit to 1 result
             queryBuilder.limit(1L);
 
+            // Query the treatments
             List<Treatment> result = getDao().query(queryBuilder.prepare());
+            // If the list is empty, return null
             if (result.isEmpty())
                 return null;
+            // Return the first result
             return result.get(0);
         } catch (SQLException e) {
+            // If there is an exception, throw a RuntimeException
             throw new RuntimeException(e);
         }
     }
 
     public void deleteNS(JSONObject json) {
+        // Get the _id from the json
         String _id = JsonHelper.safeGetString(json, "_id");
         if (_id != null && !_id.isEmpty())
             this.deleteByNSId(_id);
@@ -717,9 +825,12 @@ public class TreatmentService extends OrmLiteBaseService<DatabaseHelper> {
             try {
                 getDao().delete(stored);
             } catch (SQLException e) {
+                // Log the exception
                 aapsLogger.error("Unhandled exception", e);
             }
+            // Update the earliest data change
             DatabaseHelper.updateEarliestDataChange(stored.date);
+            // Schedule the treatment change
             this.scheduleTreatmentChange(stored, false);
         }
     }
@@ -732,22 +843,30 @@ public class TreatmentService extends OrmLiteBaseService<DatabaseHelper> {
      * @param treatment
      */
     public void delete(Treatment treatment) {
+        // Try to delete the treatment from the database
         try {
             getDao().delete(treatment);
+            // Update the earliest data change
             DatabaseHelper.updateEarliestDataChange(treatment.date);
+            // Schedule the treatment change
             this.scheduleTreatmentChange(treatment, true);
         } catch (SQLException e) {
+            // Log the error
             aapsLogger.error("Unhandled exception", e);
         }
     }
 
     public void update(Treatment treatment) {
+        // Try to update the treatment in the database
         try {
             getDao().update(treatment);
+            // Update the earliest data change
             DatabaseHelper.updateEarliestDataChange(treatment.date);
         } catch (SQLException e) {
+            // If there is an exception, log it
             aapsLogger.error("Unhandled exception", e);
         }
+        // Schedule the treatment change
         scheduleTreatmentChange(treatment, true);
     }
 
@@ -760,6 +879,7 @@ public class TreatmentService extends OrmLiteBaseService<DatabaseHelper> {
     @Nullable
     public Treatment findByNSId(String _id) {
         try {
+            // Get the DAO
             TreatmentDaoWrapper daoTreatments = getDao();
             QueryBuilder<Treatment, Long> queryBuilder = daoTreatments.queryBuilder();
             Where where = queryBuilder.where();
@@ -768,20 +888,27 @@ public class TreatmentService extends OrmLiteBaseService<DatabaseHelper> {
             PreparedQuery<Treatment> preparedQuery = queryBuilder.prepare();
             List<Treatment> trList = daoTreatments.query(preparedQuery);
             if (trList.size() != 1) {
+                // If not, log the size of the list
                 //log.debug("Treatment findTreatmentById query size: " + trList.size());
+                // Return null
                 return null;
             } else {
+                // If it is, log the treatment
                 //log.debug("Treatment findTreatmentById found: " + trList.get(0).log());
+                // Return the treatment
                 return trList.get(0);
             }
         } catch (SQLException e) {
+            // If an exception is thrown, log it
             aapsLogger.error("Unhandled exception", e);
         }
+        // Return null
         return null;
     }
 
     public List<Treatment> getTreatmentDataFromTime(long mills, boolean ascending) {
         try {
+            // Get the treatment dao
             TreatmentDaoWrapper daoTreatments = getDao();
             List<Treatment> treatments;
             QueryBuilder<Treatment, Long> queryBuilder = daoTreatments.queryBuilder();
@@ -792,13 +919,16 @@ public class TreatmentService extends OrmLiteBaseService<DatabaseHelper> {
             treatments = daoTreatments.query(preparedQuery);
             return treatments;
         } catch (SQLException e) {
+            // Log the error
             aapsLogger.error("Unhandled exception", e);
         }
+        // Return an empty list
         return new ArrayList<>();
     }
 
     public List<Treatment> getTreatmentDataFromTime(long from, long to, boolean ascending) {
         try {
+            // Get the DAO
             TreatmentDaoWrapper daoTreatments = getDao();
             List<Treatment> treatments;
             QueryBuilder<Treatment, Long> queryBuilder = daoTreatments.queryBuilder();
@@ -809,6 +939,7 @@ public class TreatmentService extends OrmLiteBaseService<DatabaseHelper> {
             treatments = daoTreatments.query(preparedQuery);
             return treatments;
         } catch (SQLException e) {
+            // Log the error
             aapsLogger.error("Unhandled exception", e);
         }
         return new ArrayList<>();
@@ -817,11 +948,13 @@ public class TreatmentService extends OrmLiteBaseService<DatabaseHelper> {
     @Nullable
     @Override
     public IBinder onBind(Intent intent) {
+        // Return null
         return null;
     }
 
     public class UpdateReturn {
         public UpdateReturn(boolean success, boolean newRecord) {
+            // Create a new UpdateReturn object
             this.success = success;
             this.newRecord = newRecord;
         }

@@ -37,4 +37,9 @@ interface PasswordCheck {
         context: Context, @StringRes labelId: Int, preference: String, @StringRes passwordExplanation: Int?,
         @StringRes passwordWarning: Int?, ok: ((String) -> Unit)?, cancel: (() -> Unit)? = null
     )
+
+    fun putPasswordToSecureStore(password: String): String
+
+    fun getPasswordFromSecureStore(): Pair<Boolean, String>
+
 }

@@ -11,6 +11,8 @@ import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import android.widget.TextView
 import androidx.annotation.StringRes
+import app.aaps.core.interfaces.logging.AAPSLogger
+import app.aaps.core.interfaces.logging.LTag
 import app.aaps.core.interfaces.protection.PasswordCheck
 import app.aaps.core.interfaces.sharedPreferences.SP
 import app.aaps.core.objects.R
@@ -23,6 +25,7 @@ import javax.inject.Inject
 
 @Reusable
 class PasswordCheckImpl @Inject constructor(
+    private var log: AAPSLogger,
     private val sp: SP,
     private val cryptoUtil: CryptoUtil
 ) : PasswordCheck {
@@ -213,4 +216,23 @@ class PasswordCheckImpl @Inject constructor(
             }
         }
     }
+
+    // Testing: in final impl move this to local secure storage
+    private var knownPassword: String = ""
+
+    override fun putPasswordToSecureStore(password: String): String {
+        knownPassword = password
+        log.debug(LTag.CORE, "putPasswordToSecureStore")
+        return password
+    }
+
+    override fun getPasswordFromSecureStore(): Pair<Boolean, String> {
+        if (knownPassword.isNotEmpty()) {  // And not expired
+            log.debug(LTag.CORE, "getPasswordFromSecureStore")
+            return Pair(true, knownPassword)
+        }
+        return Pair (false, "")
+    }
+    // Testing: in final impl move this to local secure storage
+
 }

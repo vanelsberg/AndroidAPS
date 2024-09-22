@@ -254,7 +254,6 @@ class PasswordCheckImpl @Inject constructor(
         val preferencesKey = stringPreferencesKey(passwordPreferenceKeyName)
         fun updateString()  = runBlocking {
             context.dataStore.edit { settings ->
-                val currentStringValue = settings[preferencesKey]
                 settings[preferencesKey] = password
             }[preferencesKey].toString()
         }

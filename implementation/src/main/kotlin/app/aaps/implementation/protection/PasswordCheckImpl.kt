@@ -14,7 +14,6 @@ import androidx.annotation.StringRes
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import app.aaps.core.interfaces.logging.AAPSLogger
@@ -225,12 +224,11 @@ class PasswordCheckImpl @Inject constructor(
     }
 
     // Testing: in final impl move this to local secure storage
-    private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "apps_export_store")
-    private val passwordPreferenceKeyName = "apps_export_password"
+    private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "app.aaps.plugins.configuration.maintenance.ImportExport.datastore")
+    private val passwordPreferenceKeyName = "app.aaps.plugins.configuration.maintenance.ImportExport.datastore.password_key"
     private var passwordExpired: Boolean = false
 
-    override fun resetPasswordSecureStore(context: Context) {
-        passwordExpired = true
+    override fun clearPasswordSecureStore(context: Context) {
         this.storePassword(context, "")
     }
 
@@ -251,88 +249,33 @@ class PasswordCheckImpl @Inject constructor(
     }
     // Testing: in final impl move this to local secure storage
 
-    fun testInt(context: Context) {
-        @Suppress("LocalVariableName")
-        val EXAMPLE_COUNTER = intPreferencesKey(passwordPreferenceKeyName)
-        //val EXAMPLE_STRING = stringPreferencesKey("example_counter")
-
-        // *** Write ****************************************************
-        fun incrementCounter()  = runBlocking {
-            context.dataStore.edit { settings ->
-                val currentCounterValue = settings[EXAMPLE_COUNTER] ?: 0
-                settings[EXAMPLE_COUNTER] = currentCounterValue + 1
-            }[EXAMPLE_COUNTER]?.toInt() ?: 0
-        }
-        val i: Int = incrementCounter()
-
-        // *** Read *****************************************************
-
-        fun getCounter() = runBlocking {
-            context.dataStore.edit { settings ->
-                settings[EXAMPLE_COUNTER] ?: 0
-            }
-        }
-
-        val prefs2 : Preferences = getCounter()
-        val n = prefs2[EXAMPLE_COUNTER]?.toInt()
-        println(n)
-    }
-
-    private fun testString(context: Context) {
-        @Suppress("LocalVariableName")
-        val EXAMPLE_STRING = stringPreferencesKey(passwordPreferenceKeyName)
-
-        // *** Write ****************************************************
-        fun updateString()  = runBlocking {
-            context.dataStore.edit { settings ->
-                val currentStringValue = settings[EXAMPLE_STRING]
-                settings[EXAMPLE_STRING] = currentStringValue + "A"
-            }[EXAMPLE_STRING].toString()
-        }
-        val s1: String = updateString()
-        println(s1)
-
-        // *** Read *****************************************************
-
-        fun getString() = runBlocking {
-            context.dataStore.edit { settings ->
-                settings[EXAMPLE_STRING]
-            }[EXAMPLE_STRING].toString()
-        }
-        val s2 : String = getString()
-        println(s2)
-    }
-
     private fun storePassword(context: Context, password: String): String {
-        @Suppress("LocalVariableName")
-        val EXAMPLE_STRING = stringPreferencesKey(passwordPreferenceKeyName)
-
-        // *** Write ****************************************************
+        // Write setting to android datastore
+        val preferencesKey = stringPreferencesKey(passwordPreferenceKeyName)
         fun updateString()  = runBlocking {
             context.dataStore.edit { settings ->
-                val currentStringValue = settings[EXAMPLE_STRING]
-                settings[EXAMPLE_STRING] = password
-            }[EXAMPLE_STRING].toString()
+                val currentStringValue = settings[preferencesKey]
+                settings[preferencesKey] = password
+            }[preferencesKey].toString()
         }
         val s1: String = updateString()
         return s1
     }
 
     private fun retrievePassword(context: Context): String {
-        @Suppress("LocalVariableName")
-        val EXAMPLE_STRING = stringPreferencesKey(passwordPreferenceKeyName)
-
+        // Check for password is expired flag
         if (this.passwordExpired) {
-            // Password expired: return empty
+            // Password expired: return empty and reset flag
             this.passwordExpired = false
             return ""
         }
 
-        // *** Read *****************************************************
+        // Read setting form android datastore
+        val preferencesKey = stringPreferencesKey(passwordPreferenceKeyName)
         fun getString() = runBlocking {
-            context.dataStore.edit { settings ->
-                settings[EXAMPLE_STRING] ?:""
-            }[EXAMPLE_STRING].toString()
+            (context.dataStore.edit { settings ->
+                settings[preferencesKey] ?:""
+            }[preferencesKey] ?:"").toString()
         }
         val password : String = getString()
         return password

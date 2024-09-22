@@ -188,7 +188,7 @@ class ImportExportPrefsImpl @Inject constructor(
                 activity, rh.gs(wrongPwdTitle), rh.gs(R.string.master_password_missing, rh.gs(R.string.protection)), R.string.nav_preferences,
                 { activity.startActivity(Intent(activity, uiInteraction.preferencesActivity).putExtra(UiInteraction.PREFERENCE, UiInteraction.Preferences.PROTECTION)) }
             )
-            passwordCheck.resetPasswordSecureStore(context)
+            passwordCheck.clearPasswordSecureStore(context)
             return false
         }
         return true
@@ -225,7 +225,7 @@ class ImportExportPrefsImpl @Inject constructor(
         }
 
         // Make sure stored password is reset
-        passwordCheck.resetPasswordSecureStore((context))
+        passwordCheck.clearPasswordSecureStore((context))
         // Ask for entering password and store when succesfully entered
         TwoMessagesAlertDialog.showAlert(
             activity, rh.gs(app.aaps.core.ui.R.string.nav_export),

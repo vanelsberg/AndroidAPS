@@ -38,8 +38,10 @@ interface PasswordCheck {
         @StringRes passwordWarning: Int?, ok: ((String) -> Unit)?, cancel: (() -> Unit)? = null
     )
 
-    fun putPasswordToSecureStore(password: String): String
+    fun resetPasswordSecureStore(context: Context)
 
-    fun getPasswordFromSecureStore(): Pair<Boolean, String>
+    fun putPasswordToSecureStore(context: Context, password: String): String
+
+    fun getPasswordFromSecureStore(context: Context): Pair<Boolean, String>
 
 }

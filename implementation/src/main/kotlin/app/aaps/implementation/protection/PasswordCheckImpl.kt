@@ -11,6 +11,12 @@ import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import android.widget.TextView
 import androidx.annotation.StringRes
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
 import app.aaps.core.interfaces.logging.AAPSLogger
 import app.aaps.core.interfaces.logging.LTag
 import app.aaps.core.interfaces.protection.PasswordCheck
@@ -21,6 +27,7 @@ import app.aaps.core.ui.extensions.runOnUiThread
 import app.aaps.core.ui.toast.ToastUtils
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import dagger.Reusable
+import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 
 @Reusable
@@ -218,21 +225,117 @@ class PasswordCheckImpl @Inject constructor(
     }
 
     // Testing: in final impl move this to local secure storage
-    private var knownPassword: String = ""
+    private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "apps_export_store")
+    private val passwordPreferenceKeyName = "apps_export_password"
+    private var passwordExpired: Boolean = false
 
-    override fun putPasswordToSecureStore(password: String): String {
-        knownPassword = password
+    override fun resetPasswordSecureStore(context: Context) {
+        passwordExpired = true
+        this.storePassword(context, "")
+    }
+
+    override fun putPasswordToSecureStore(context: Context, password: String): String {
+        this.storePassword(context, password)
         log.debug(LTag.CORE, "putPasswordToSecureStore")
         return password
     }
 
-    override fun getPasswordFromSecureStore(): Pair<Boolean, String> {
-        if (knownPassword.isNotEmpty()) {  // And not expired
+    override fun getPasswordFromSecureStore(context: Context): Pair<Boolean, String> {
+        val password = this.retrievePassword(context)
+
+        if (password.isNotEmpty()) {  // And not expired
             log.debug(LTag.CORE, "getPasswordFromSecureStore")
-            return Pair(true, knownPassword)
+            return Pair(true, password)
         }
         return Pair (false, "")
     }
     // Testing: in final impl move this to local secure storage
+
+    fun testInt(context: Context) {
+        @Suppress("LocalVariableName")
+        val EXAMPLE_COUNTER = intPreferencesKey(passwordPreferenceKeyName)
+        //val EXAMPLE_STRING = stringPreferencesKey("example_counter")
+
+        // *** Write ****************************************************
+        fun incrementCounter()  = runBlocking {
+            context.dataStore.edit { settings ->
+                val currentCounterValue = settings[EXAMPLE_COUNTER] ?: 0
+                settings[EXAMPLE_COUNTER] = currentCounterValue + 1
+            }[EXAMPLE_COUNTER]?.toInt() ?: 0
+        }
+        val i: Int = incrementCounter()
+
+        // *** Read *****************************************************
+
+        fun getCounter() = runBlocking {
+            context.dataStore.edit { settings ->
+                settings[EXAMPLE_COUNTER] ?: 0
+            }
+        }
+
+        val prefs2 : Preferences = getCounter()
+        val n = prefs2[EXAMPLE_COUNTER]?.toInt()
+        println(n)
+    }
+
+    private fun testString(context: Context) {
+        @Suppress("LocalVariableName")
+        val EXAMPLE_STRING = stringPreferencesKey(passwordPreferenceKeyName)
+
+        // *** Write ****************************************************
+        fun updateString()  = runBlocking {
+            context.dataStore.edit { settings ->
+                val currentStringValue = settings[EXAMPLE_STRING]
+                settings[EXAMPLE_STRING] = currentStringValue + "A"
+            }[EXAMPLE_STRING].toString()
+        }
+        val s1: String = updateString()
+        println(s1)
+
+        // *** Read *****************************************************
+
+        fun getString() = runBlocking {
+            context.dataStore.edit { settings ->
+                settings[EXAMPLE_STRING]
+            }[EXAMPLE_STRING].toString()
+        }
+        val s2 : String = getString()
+        println(s2)
+    }
+
+    private fun storePassword(context: Context, password: String): String {
+        @Suppress("LocalVariableName")
+        val EXAMPLE_STRING = stringPreferencesKey(passwordPreferenceKeyName)
+
+        // *** Write ****************************************************
+        fun updateString()  = runBlocking {
+            context.dataStore.edit { settings ->
+                val currentStringValue = settings[EXAMPLE_STRING]
+                settings[EXAMPLE_STRING] = password
+            }[EXAMPLE_STRING].toString()
+        }
+        val s1: String = updateString()
+        return s1
+    }
+
+    private fun retrievePassword(context: Context): String {
+        @Suppress("LocalVariableName")
+        val EXAMPLE_STRING = stringPreferencesKey(passwordPreferenceKeyName)
+
+        if (this.passwordExpired) {
+            // Password expired: return empty
+            this.passwordExpired = false
+            return ""
+        }
+
+        // *** Read *****************************************************
+        fun getString() = runBlocking {
+            context.dataStore.edit { settings ->
+                settings[EXAMPLE_STRING] ?:""
+            }[EXAMPLE_STRING].toString()
+        }
+        val password : String = getString()
+        return password
+    }
 
 }

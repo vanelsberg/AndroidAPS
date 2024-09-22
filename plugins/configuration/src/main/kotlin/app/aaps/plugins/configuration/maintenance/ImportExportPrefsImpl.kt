@@ -188,7 +188,7 @@ class ImportExportPrefsImpl @Inject constructor(
                 activity, rh.gs(wrongPwdTitle), rh.gs(R.string.master_password_missing, rh.gs(R.string.protection)), R.string.nav_preferences,
                 { activity.startActivity(Intent(activity, uiInteraction.preferencesActivity).putExtra(UiInteraction.PREFERENCE, UiInteraction.Preferences.PROTECTION)) }
             )
-            passwordCheck.putPasswordToSecureStore("")
+            passwordCheck.resetPasswordSecureStore(context)
             return false
         }
         return true
@@ -213,22 +213,27 @@ class ImportExportPrefsImpl @Inject constructor(
     // // Testing: in final impl move this to local secure storage
 
     private fun askToConfirmExport(activity: FragmentActivity, fileToExport: File, then: ((password: String) -> Unit)) {
-        if (!assureMasterPasswordSet(activity, app.aaps.core.ui.R.string.nav_export)) return
+        if (!assureMasterPasswordSet(activity, app.aaps.core.ui.R.string.nav_export)) {
+            return
+        }
 
-        val storedPassword = passwordCheck.getPasswordFromSecureStore()
+        // Get password from secure store when exist and not expired
+        val storedPassword = passwordCheck.getPasswordFromSecureStore(context)
         if (storedPassword.first) {
             then(storedPassword.second)
             return
         }
 
+        // Make sure stored password is reset
+        passwordCheck.resetPasswordSecureStore((context))
+        // Ask for entering password and store when succesfully entered
         TwoMessagesAlertDialog.showAlert(
             activity, rh.gs(app.aaps.core.ui.R.string.nav_export),
             rh.gs(R.string.export_to) + " " + fileToExport.name + " ?",
             rh.gs(R.string.password_preferences_encrypt_prompt), {
-                // askForMasterPassIfNeeded(activity, R.string.preferences_export_canceled, then)
                 askForMasterPassIfNeeded(activity, R.string.preferences_export_canceled)
                 { password ->
-                    then(passwordCheck.putPasswordToSecureStore(password))
+                    then(passwordCheck.putPasswordToSecureStore(context, password))
                 }
             }, null, R.drawable.ic_header_export
         )

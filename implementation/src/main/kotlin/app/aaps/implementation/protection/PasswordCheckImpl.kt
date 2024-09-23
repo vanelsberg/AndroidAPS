@@ -132,6 +132,7 @@ class PasswordCheckImpl @Inject constructor(
                     ToastUtils.errorToast(context, context.getString(msg))
                 } else if (enteredPassword.isNotEmpty()) {
                     sp.putString(preference, cryptoUtil.hashPassword(enteredPassword))
+                    this.clearPasswordSecureStore(context)
                     val msg = if (pinInput) app.aaps.core.ui.R.string.pin_set else app.aaps.core.ui.R.string.password_set
                     ToastUtils.okToast(context, context.getString(msg))
                     ok?.invoke(enteredPassword)
@@ -223,7 +224,7 @@ class PasswordCheckImpl @Inject constructor(
         }
     }
 
-    // Testing: in final impl move this to local secure storage
+    // Draft: in final impl move this to local secure storage
     private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "app.aaps.plugins.configuration.maintenance.ImportExport.datastore")
     private val passwordPreferenceKeyName = "app.aaps.plugins.configuration.maintenance.ImportExport.datastore.password_key"
     private var passwordExpired: Boolean = false

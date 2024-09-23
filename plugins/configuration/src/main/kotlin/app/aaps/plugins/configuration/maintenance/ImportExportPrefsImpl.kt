@@ -217,7 +217,7 @@ class ImportExportPrefsImpl @Inject constructor(
             return
         }
 
-        // Get password from secure store when exist and not expired
+        // Get password from secure store when exist and is not empty or expired
         val storedPassword = passwordCheck.getPasswordFromSecureStore(context)
         if (storedPassword.first) {
             then(storedPassword.second)
@@ -226,7 +226,7 @@ class ImportExportPrefsImpl @Inject constructor(
 
         // Make sure stored password is reset
         passwordCheck.clearPasswordSecureStore((context))
-        // Ask for entering password and store when succesfully entered
+        // Ask for entering password and store when successfully entered
         TwoMessagesAlertDialog.showAlert(
             activity, rh.gs(app.aaps.core.ui.R.string.nav_export),
             rh.gs(R.string.export_to) + " " + fileToExport.name + " ?",

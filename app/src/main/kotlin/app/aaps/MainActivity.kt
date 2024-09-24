@@ -43,6 +43,7 @@ import app.aaps.core.interfaces.notifications.Notification
 import app.aaps.core.interfaces.plugin.ActivePlugin
 import app.aaps.core.interfaces.plugin.PluginDescription
 import app.aaps.core.interfaces.profile.ProfileFunction
+import app.aaps.core.interfaces.protection.ExportPasswordCheck
 import app.aaps.core.interfaces.protection.PasswordCheck
 import app.aaps.core.interfaces.protection.ProtectionCheck
 import app.aaps.core.interfaces.rx.AapsSchedulers
@@ -109,7 +110,8 @@ class MainActivity : DaggerAppCompatActivityWithResult() {
     @Inject lateinit var profileFunction: ProfileFunction
     @Inject lateinit var fileListProvider: FileListProvider
     @Inject lateinit var cryptoUtil: CryptoUtil
-    @Inject lateinit var storedpasswordcheck: PasswordCheck
+    @Inject lateinit var exportPasswordCheck: ExportPasswordCheck
+
 
     private lateinit var actionBarDrawerToggle: ActionBarDrawerToggle
     private var pluginPreferencesMenuItem: MenuItem? = null
@@ -491,19 +493,19 @@ class MainActivity : DaggerAppCompatActivityWithResult() {
             preferences.put(StringKey.ProtectionMasterPassword, cryptoUtil.hashPassword(sn))
             passwordReset.delete()
             // Also clear any stored password
-            storedpasswordcheck.clearPasswordSecureStore(context)
+            exportPasswordCheck.clearPasswordSecureStore(context)
             ToastUtils.okToast(context, context.getString(app.aaps.core.ui.R.string.password_set))
         }
     }
 
     /**
      * Check for existing ExportPasswordReset file and
-     * clear password stored in datastore
+     * clear password stored in datastore if file exists
      */
         private fun exportPasswordResetCheck(context: Context) {
         val exportPasswordReset = File(fileListProvider.ensureExtraDirExists(), "ExportPasswordReset")
         if (exportPasswordReset.exists()) {
-            storedpasswordcheck.clearPasswordSecureStore(context)
+            exportPasswordCheck.clearPasswordSecureStore(context)
             exportPasswordReset.delete()
             ToastUtils.okToast(context, context.getString(app.aaps.core.ui.R.string.datastore_password_cleared))
         }

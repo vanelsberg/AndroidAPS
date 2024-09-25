@@ -17,6 +17,10 @@ import javax.inject.Inject
 // Password validity window
 // TODO: This should be made configurable?
 const val passwordValidityWindowSeconds: Long = 5 * 60 * 1000 // 5 minutes
+// Internal constant stings
+const val datastoreName : String = "app.aaps.plugins.configuration.maintenance.ImportExport.datastore"
+const val passwordPreferenceKeyName = "$datastoreName.password_value_key"
+const val passwordTimestampPreferenceKeyName = "$datastoreName.password_timestamp_key"
 
 @Reusable
 class ExportPasswordCheckImpl @Inject constructor(
@@ -25,15 +29,28 @@ class ExportPasswordCheckImpl @Inject constructor(
 
     @Inject lateinit var dateUtil: DateUtil
 
-    // Draft: in final impl move this to local secure storage
-    private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "app.aaps.plugins.configuration.maintenance.ImportExport.datastore")
-    private val passwordPreferenceKeyName = "app.aaps.plugins.configuration.maintenance.ImportExport.datastore.password_value_key"
-    private val passwordTimestampPreferenceKeyName = "app.aaps.plugins.configuration.maintenance.ImportExport.datastore.password_timestamp_key"
+    // TODO: Draft = review security for phone's local data store?
+    private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(
+        name = datastoreName
+    )
+
+    /***
+     * Returns true when Export password store is enabled.
+     * TODO: <make this configurable?
+     */
+    override fun ExportPasswordStoreSupported() : Boolean {
+        val exportPasswordStoreSupported = true
+        log.debug(LTag.CORE, "ExportPassword Store Supported: $exportPasswordStoreSupported")
+        return exportPasswordStoreSupported
+    }
 
     /***
      * Clear password currently stored to "empty"
      */
     override fun clearPasswordSecureStore(context: Context): String {
+        if (!ExportPasswordStoreSupported()) return ""
+
+        log.debug(LTag.CORE, "clearPasswordSecureStore")
         return this.storePassword(context, "")
     }
 
@@ -41,6 +58,8 @@ class ExportPasswordCheckImpl @Inject constructor(
      * Put password to local phone's datastore
      */
     override fun putPasswordToSecureStore(context: Context, password: String): String {
+        if (!ExportPasswordStoreSupported()) return ""
+
         log.debug(LTag.CORE, "putPasswordToSecureStore")
         return this.storePassword(context, password)
     }
@@ -50,9 +69,9 @@ class ExportPasswordCheckImpl @Inject constructor(
      * Return pair (true,<password>) or (false,"")
      */
     override fun getPasswordFromSecureStore(context: Context): Pair<Boolean, String> {
-        val password = this.retrievePassword(context)
-        log.debug(LTag.CORE, "getPasswordFromSecureStore")
+        if (!ExportPasswordStoreSupported()) return Pair (false, "")
 
+        val password = this.retrievePassword(context)
         if (password.isNotEmpty()) {  // And not expired
             log.debug(LTag.CORE, "getPasswordFromSecureStore")
             return Pair(true, password)
@@ -60,7 +79,7 @@ class ExportPasswordCheckImpl @Inject constructor(
         return Pair (false, "")
     }
 
-    // Testing: in final impl move this to local secure storage
+    // TODO: Review security on storing password in phone's local data store
     /*************************************************************************
      * Private functions
     *************************************************************************/
@@ -122,6 +141,5 @@ class ExportPasswordCheckImpl @Inject constructor(
         // Store/update password and return
         return this.storePassword(context, password)
     }
-
 
 }

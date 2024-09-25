@@ -4,7 +4,7 @@ import android.content.Context
 
 interface ExportPasswordCheck {
 
-    fun clearPasswordSecureStore(context: Context)
+    fun clearPasswordSecureStore(context: Context): String
 
     fun putPasswordToSecureStore(context: Context, password: String): String
 

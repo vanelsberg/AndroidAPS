@@ -29,7 +29,8 @@ class ExportPasswordCheckImpl @Inject constructor(
 
     @Inject lateinit var dateUtil: DateUtil
 
-    // TODO: Draft = review security for phone's local data store?
+    // TODO: (Draft) Review security on storing password in phone's local data store
+
     private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(
         name = datastoreName
     )
@@ -79,7 +80,6 @@ class ExportPasswordCheckImpl @Inject constructor(
         return Pair (false, "")
     }
 
-    // TODO: Review security on storing password in phone's local data store
     /*************************************************************************
      * Private functions
     *************************************************************************/

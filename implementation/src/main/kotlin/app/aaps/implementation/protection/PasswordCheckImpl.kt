@@ -128,7 +128,7 @@ class PasswordCheckImpl @Inject constructor(
                     ToastUtils.errorToast(context, context.getString(msg))
                 } else if (enteredPassword.isNotEmpty()) {
                     sp.putString(preference, cryptoUtil.hashPassword(enteredPassword))
-                    exportPasswordCheck.clearPasswordSecureStore(context)
+                    exportPasswordCheck.clearPasswordDataStore(context)
                     val msg = if (pinInput) app.aaps.core.ui.R.string.pin_set else app.aaps.core.ui.R.string.password_set
                     ToastUtils.okToast(context, context.getString(msg))
                     ok?.invoke(enteredPassword)

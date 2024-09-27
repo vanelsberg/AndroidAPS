@@ -492,7 +492,7 @@ class MainActivity : DaggerAppCompatActivityWithResult() {
             preferences.put(StringKey.ProtectionMasterPassword, cryptoUtil.hashPassword(sn))
             passwordReset.delete()
             // Also clear any stored password
-            exportPasswordCheck.clearPasswordSecureStore(context)
+            exportPasswordCheck.clearPasswordDataStore(context)
             ToastUtils.okToast(context, context.getString(app.aaps.core.ui.R.string.password_set))
         }
     }
@@ -504,7 +504,7 @@ class MainActivity : DaggerAppCompatActivityWithResult() {
         private fun exportPasswordResetCheck(context: Context) {
         val exportPasswordReset = File(fileListProvider.ensureExtraDirExists(), "ExportPasswordReset")
         if (exportPasswordReset.exists()) {
-            exportPasswordCheck.clearPasswordSecureStore(context)
+            exportPasswordCheck.clearPasswordDataStore(context)
             exportPasswordReset.delete()
             ToastUtils.okToast(context, context.getString(app.aaps.core.ui.R.string.datastore_password_cleared))
         }

@@ -16,11 +16,12 @@ import javax.inject.Inject
 
 // Password validity window
 // TODO: This should be made configurable?
-const val passwordValidityWindowSeconds: Long = 5 * 60 * 1000 // 5 minutes
+// const val passwordValidityWindowSeconds: Long = 1 * 24 * 3600 * 1000 // 1 days
+const val passwordValidityWindowSeconds: Long = 10 * 60 * 1000 // 10 minutes
+
 // Internal constant stings
 const val datastoreName : String = "app.aaps.plugins.configuration.maintenance.ImportExport.datastore"
-const val passwordPreferenceKeyName = "$datastoreName.password_value_key"
-const val passwordTimestampPreferenceKeyName = "$datastoreName.password_timestamp_key"
+const val passwordPreferenceName = "$datastoreName.password_value"
 
 @Reusable
 class ExportPasswordCheckImpl @Inject constructor(
@@ -48,20 +49,21 @@ class ExportPasswordCheckImpl @Inject constructor(
     /***
      * Clear password currently stored to "empty"
      */
-    override fun clearPasswordSecureStore(context: Context): String {
+    override fun clearPasswordDataStore(context: Context): String {
         if (!ExportPasswordStoreSupported()) return ""
 
-        log.debug(LTag.CORE, "clearPasswordSecureStore")
+        log.debug(LTag.CORE, "clearPasswordDataStore")
+        // Store & update to empty password and return
         return this.storePassword(context, "")
     }
 
     /***
      * Put password to local phone's datastore
      */
-    override fun putPasswordToSecureStore(context: Context, password: String): String {
+    override fun putPasswordToDataStore(context: Context, password: String): String {
         if (!ExportPasswordStoreSupported()) return ""
 
-        log.debug(LTag.CORE, "putPasswordToSecureStore")
+        log.debug(LTag.CORE, "putPasswordToDataStore")
         return this.storePassword(context, password)
     }
 
@@ -69,12 +71,12 @@ class ExportPasswordCheckImpl @Inject constructor(
      * Get password from local phone's data store
      * Return pair (true,<password>) or (false,"")
      */
-    override fun getPasswordFromSecureStore(context: Context): Pair<Boolean, String> {
+    override fun getPasswordFromDataStore(context: Context): Pair<Boolean, String> {
         if (!ExportPasswordStoreSupported()) return Pair (false, "")
 
         val password = this.retrievePassword(context)
         if (password.isNotEmpty()) {  // And not expired
-            log.debug(LTag.CORE, "getPasswordFromSecureStore")
+            log.debug(LTag.CORE, "getPasswordFromDataStore")
             return Pair(true, password)
         }
         return Pair (false, "")
@@ -96,18 +98,19 @@ class ExportPasswordCheckImpl @Inject constructor(
      */
     private fun storePassword(context: Context, password: String): String {
 
-        // Write setting to android datastore
-        fun updatePrefString(key: String, str: String)  = runBlocking {
-            val preferencesKey = stringPreferencesKey(key)
+        // Write setting to android datastore and return password
+        fun updatePrefString(name: String, str: String)  = runBlocking {
+            val preferencesKeyPassword = stringPreferencesKey("$name.key")
+            val preferencesKeyTimestamp = stringPreferencesKey("$name.ts")
             context.dataStore.edit { settings ->
-                settings[preferencesKey] = str
-            }[preferencesKey].toString()
+                // Update password and timestamp to "now" as string value
+                settings[preferencesKeyPassword] = str
+                settings[preferencesKeyTimestamp] = dateUtil.now().toString()
+            }[preferencesKeyPassword].toString()
         }
 
-        // Update password timestamp to "now" as string value
-        updatePrefString(passwordTimestampPreferenceKeyName, dateUtil.now().toString())
-        // Update password value & return it
-        return updatePrefString(passwordPreferenceKeyName, password)
+        // Update & return password string
+        return updatePrefString(passwordPreferenceName, password)
     }
 
     /***
@@ -117,29 +120,32 @@ class ExportPasswordCheckImpl @Inject constructor(
     private fun retrievePassword(context: Context): String {
 
         // Read string value from phone's local datastore using key name
-        fun getPrefString(key: String) = runBlocking {
-            val preferencesKey = stringPreferencesKey(key)
-            (context.dataStore.edit { settings ->
-                settings[preferencesKey] ?:""
-            }[preferencesKey] ?:"").toString()
+        var passwordStr = ""
+        var timestampStr = ""
+
+        runBlocking {
+            val keyname = passwordPreferenceName
+            val preferencesKeyVal = stringPreferencesKey("$keyname.key")
+            val preferencesKeyTs = stringPreferencesKey("$keyname.ts")
+            context.dataStore.edit { settings ->
+                passwordStr = settings[preferencesKeyVal] ?:""
+                timestampStr = (settings[preferencesKeyTs] ?:"")
+            }
         }
+
         // Get the password value stored
-        val password = getPrefString(passwordPreferenceKeyName)
-        if (password.isEmpty())
+        if (passwordStr.isEmpty())
             return ""
 
         // Password is defined: Check for password expiry:
-        val timestampStr = getPrefString(passwordTimestampPreferenceKeyName) // Note: timestamp stored as string value
         val timestamp = if (timestampStr.isEmpty()) 0L else timestampStr.toLong()
-
-        // Is password valid?
         if (!isInValidityWindow(timestamp, passwordValidityWindowSeconds))
             // Password validity ended - need to renew:
-            // Clear password in data store
-            return this.clearPasswordSecureStore(context)
+            // Clear/update password in data store
+            return this.clearPasswordDataStore(context)
 
         // Store/update password and return
-        return this.storePassword(context, password)
+        return this.storePassword(context, passwordStr)
     }
 
 }

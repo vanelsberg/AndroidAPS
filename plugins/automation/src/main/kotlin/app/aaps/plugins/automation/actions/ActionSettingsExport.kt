@@ -7,7 +7,6 @@ import app.aaps.core.data.model.TE
 import app.aaps.core.data.ue.Sources
 import app.aaps.core.interfaces.configuration.Config
 import app.aaps.core.interfaces.db.PersistenceLayer
-import app.aaps.core.interfaces.logging.LTag
 import app.aaps.core.interfaces.maintenance.ImportExportPrefs
 import app.aaps.core.interfaces.notifications.NotificationInfoMessage
 import app.aaps.core.interfaces.notifications.NotificationUserMessage
@@ -58,7 +57,7 @@ class ActionSettingsExport(injector: HasAndroidInjector) : Action(injector) {
 
     // From ActionNotification
     override fun doAction(callback: Callback) {
-        var message = ""
+        var message: String
 
         val storedPassword = exportPasswordCheck.getPasswordFromDataStore(context)
         if (storedPassword.first) {

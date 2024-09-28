@@ -16,8 +16,8 @@ import javax.inject.Inject
 
 // Password validity window
 // TODO: This should be made configurable?
-// const val passwordValidityWindowSeconds: Long = 1 * 24 * 3600 * 1000 // 1 days
-const val passwordValidityWindowSeconds: Long = 10 * 60 * 1000 // 10 minutes
+const val passwordValidityWindowSeconds: Long = 7 * 24 * 3600 * 1000 // 1 days
+// const val passwordValidityWindowSeconds: Long = 10 * 60 * 1000 // 10 minutes
 
 // Internal constant stings
 const val datastoreName : String = "app.aaps.plugins.configuration.maintenance.ImportExport.datastore"

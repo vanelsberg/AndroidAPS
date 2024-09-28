@@ -7,7 +7,11 @@ import app.aaps.core.data.model.TE
 import app.aaps.core.data.ue.Sources
 import app.aaps.core.interfaces.configuration.Config
 import app.aaps.core.interfaces.db.PersistenceLayer
+import app.aaps.core.interfaces.logging.LTag
+import app.aaps.core.interfaces.maintenance.ImportExportPrefs
+import app.aaps.core.interfaces.notifications.NotificationInfoMessage
 import app.aaps.core.interfaces.notifications.NotificationUserMessage
+import app.aaps.core.interfaces.protection.ExportPasswordCheck
 import app.aaps.core.interfaces.queue.Callback
 import app.aaps.core.interfaces.rx.bus.RxBus
 import app.aaps.core.interfaces.rx.events.EventNewNotification
@@ -34,6 +38,8 @@ class ActionSettingsExport(injector: HasAndroidInjector) : Action(injector) {
     @Inject lateinit var timerUtil: TimerUtil
     @Inject lateinit var config: Config
     @Inject lateinit var persistenceLayer: PersistenceLayer
+    @Inject lateinit var importExportPrefs: ImportExportPrefs
+    @Inject lateinit var exportPasswordCheck: ExportPasswordCheck
 
     private val disposable = CompositeDisposable()
 
@@ -47,23 +53,39 @@ class ActionSettingsExport(injector: HasAndroidInjector) : Action(injector) {
     override fun shortDescription(): String = rh.gs(R.string.exportsettings_message, text.value)
     @DrawableRes override fun icon(): Int = app.aaps.core.objects.R.drawable.ic_access_alarm_24dp
 
-    //override fun isValid(): Boolean = true // empty will show app name
-    override fun isValid(): Boolean = text.value.isNotEmpty()
+    override fun isValid(): Boolean = true // empty will show app name
+    //override fun isValid(): Boolean = text.value.isNotEmpty()
 
     // From ActionNotification
     override fun doAction(callback: Callback) {
-        val notification = NotificationUserMessage(text.value)
-        rxBus.send(EventNewNotification(notification))
+        var message = ""
+
+        val storedPassword = exportPasswordCheck.getPasswordFromDataStore(context)
+        if (storedPassword.first) {
+            importExportPrefs.exportSharedPreferencesNonInteractive(context, storedPassword.second)
+            message = "Settings exported"
+            val notification = NotificationInfoMessage(message)
+            rxBus.send(EventNewNotification(notification))
+        }
+        else {
+            // No password, was expired and needs re-entering by user
+            exportPasswordCheck.clearPasswordDataStore(context)
+            message = "Settings export canceled: Re-enter password!"
+            val notification = NotificationUserMessage(message)
+            rxBus.send(EventNewNotification(notification))
+        }
+
         disposable += persistenceLayer.insertPumpTherapyEventIfNewByTimestamp(
             therapyEvent = TE.asAnnouncement(text.value),
             timestamp = dateUtil.now(),
             action = app.aaps.core.data.ue.Action.EXPORT_SETTINGS,
             source = Sources.Automation,
-            note = "Export_test" + text.value,
+            note = message,
             listValues = listOf()
         ).subscribe()
         rxBus.send(EventRefreshOverview("ActionSettingsExport"))
         callback.result(instantiator.providePumpEnactResult().success(true).comment(app.aaps.core.ui.R.string.ok)).run()
+
     }
 
 

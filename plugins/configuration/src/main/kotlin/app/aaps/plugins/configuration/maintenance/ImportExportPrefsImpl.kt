@@ -260,6 +260,36 @@ class ImportExportPrefsImpl @Inject constructor(
         }
     }
 
+    override fun exportSharedPreferencesNonInteractive(context: Context, password: String): Boolean {
+        var resultOk = false // Assume result was not OK unless acknowledged
+
+        prefFileList.ensureExportDirExists()
+        val newFile = prefFileList.newExportFile()
+
+        try {
+            val entries: MutableMap<String, String> = mutableMapOf()
+            for ((key, value) in sp.getAll()) {
+                entries[key] = value.toString()
+            }
+
+            val prefs = Prefs(entries, prepareMetadata(context))
+
+            encryptedPrefsFormat.savePreferences(newFile, prefs, password)
+            resultOk = true // Assuming export was executed successfully (or it would have thrown an exception)
+
+        } catch (e: FileNotFoundException) {
+            log.error(LTag.CORE, "Unhandled exception: filenotfound", e)
+        } catch (e: IOException) {
+            log.error(LTag.CORE, "Unhandled exception: IOexception", e)
+        } catch (e: PrefFileNotFoundError) {
+            log.error(LTag.CORE, "File system exception: Pref File not found, export canceled", e)
+        } catch (e: PrefIOError) {
+            log.error(LTag.CORE, "File system exception: PrefIOError, export canceled", e)
+        }
+        return resultOk
+    }
+
+
     private fun exportSharedPreferences(activity: FragmentActivity) {
 
         prefFileList.ensureExportDirExists()

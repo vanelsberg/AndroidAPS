@@ -57,7 +57,7 @@ class ActionSettingsExport(injector: HasAndroidInjector) : Action(injector) {
 
     // From ActionNotification
     override fun doAction(callback: Callback) {
-        var message: String
+        val message: String
 
         val storedPassword = exportPasswordCheck.getPasswordFromDataStore(context)
         if (storedPassword.first) {

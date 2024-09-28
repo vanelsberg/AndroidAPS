@@ -52,22 +52,21 @@ class ActionSettingsExport(injector: HasAndroidInjector) : Action(injector) {
     override fun shortDescription(): String = rh.gs(R.string.exportsettings_message, text.value)
     @DrawableRes override fun icon(): Int = app.aaps.core.objects.R.drawable.ic_access_alarm_24dp
 
-    override fun isValid(): Boolean = true // empty will show app name
-    //override fun isValid(): Boolean = text.value.isNotEmpty()
+    override fun isValid(): Boolean = true
 
-    // From ActionNotification
     override fun doAction(callback: Callback) {
         val message: String
 
         val storedPassword = exportPasswordCheck.getPasswordFromDataStore(context)
         if (storedPassword.first) {
+            // We have a password: start exporting & notify info
             importExportPrefs.exportSharedPreferencesNonInteractive(context, storedPassword.second)
             message = "Settings exported"
             val notification = NotificationInfoMessage(message)
             rxBus.send(EventNewNotification(notification))
         }
         else {
-            // No password, was expired and needs re-entering by user
+            // No password, was expired and needs re-entering by user, notify user
             exportPasswordCheck.clearPasswordDataStore(context)
             message = "Settings export canceled: Re-enter password!"
             val notification = NotificationUserMessage(message)

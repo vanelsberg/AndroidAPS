@@ -33,11 +33,15 @@ class ActionSettingsExport(injector: HasAndroidInjector) : Action(injector) {
     @Inject lateinit var dateUtil: DateUtil
     @Inject lateinit var timerUtil: TimerUtil
     @Inject lateinit var config: Config
-    @Inject lateinit var persistenceLayer: PersistenceLayer // From ActionNotification
+    @Inject lateinit var persistenceLayer: PersistenceLayer
 
     private val disposable = CompositeDisposable()
 
     var text = InputString()
+
+    constructor(injector: HasAndroidInjector, text: String) : this(injector) {
+        this.text = InputString(text)
+    }
 
     override fun friendlyName(): Int = app.aaps.core.ui.R.string.exportsettings
     override fun shortDescription(): String = rh.gs(R.string.exportsettings_message, text.value)

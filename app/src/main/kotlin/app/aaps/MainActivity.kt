@@ -43,7 +43,7 @@ import app.aaps.core.interfaces.notifications.Notification
 import app.aaps.core.interfaces.plugin.ActivePlugin
 import app.aaps.core.interfaces.plugin.PluginDescription
 import app.aaps.core.interfaces.profile.ProfileFunction
-import app.aaps.core.interfaces.protection.ExportPasswordCheck
+import app.aaps.core.interfaces.protection.ExportPasswordDataStore
 import app.aaps.core.interfaces.protection.ProtectionCheck
 import app.aaps.core.interfaces.rx.AapsSchedulers
 import app.aaps.core.interfaces.rx.events.EventAppExit
@@ -109,7 +109,7 @@ class MainActivity : DaggerAppCompatActivityWithResult() {
     @Inject lateinit var profileFunction: ProfileFunction
     @Inject lateinit var fileListProvider: FileListProvider
     @Inject lateinit var cryptoUtil: CryptoUtil
-    @Inject lateinit var exportPasswordCheck: ExportPasswordCheck
+    @Inject lateinit var exportPasswordDataStore: ExportPasswordDataStore
 
 
     private lateinit var actionBarDrawerToggle: ActionBarDrawerToggle
@@ -492,7 +492,7 @@ class MainActivity : DaggerAppCompatActivityWithResult() {
             preferences.put(StringKey.ProtectionMasterPassword, cryptoUtil.hashPassword(sn))
             passwordReset.delete()
             // Also clear any stored password
-            exportPasswordCheck.clearPasswordDataStore(context)
+            exportPasswordDataStore.clearPasswordDataStore(context)
             ToastUtils.okToast(context, context.getString(app.aaps.core.ui.R.string.password_set))
         }
     }
@@ -504,7 +504,7 @@ class MainActivity : DaggerAppCompatActivityWithResult() {
         private fun exportPasswordResetCheck(context: Context) {
         val exportPasswordReset = File(fileListProvider.ensureExtraDirExists(), "ExportPasswordReset")
         if (exportPasswordReset.exists()) {
-            exportPasswordCheck.clearPasswordDataStore(context)
+            exportPasswordDataStore.clearPasswordDataStore(context)
             exportPasswordReset.delete()
             ToastUtils.okToast(context, context.getString(app.aaps.core.ui.R.string.datastore_password_cleared))
         }

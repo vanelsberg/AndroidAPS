@@ -34,7 +34,7 @@ import app.aaps.core.interfaces.maintenance.PrefMetadata
 import app.aaps.core.interfaces.maintenance.PrefsFile
 import app.aaps.core.interfaces.maintenance.PrefsMetadataKey
 import app.aaps.core.interfaces.protection.PasswordCheck
-import app.aaps.core.interfaces.protection.ExportPasswordCheck
+import app.aaps.core.interfaces.protection.ExportPasswordDataStore
 import app.aaps.core.interfaces.resources.ResourceHelper
 import app.aaps.core.interfaces.rx.bus.RxBus
 import app.aaps.core.interfaces.rx.events.EventAppExit
@@ -89,7 +89,7 @@ class ImportExportPrefsImpl @Inject constructor(
     private val config: Config,
     private val rxBus: RxBus,
     private val passwordCheck: PasswordCheck,
-    private val exportPasswordCheck: ExportPasswordCheck,
+    private val exportPasswordDataStore: ExportPasswordDataStore,
     private val androidPermission: AndroidPermission,
     private val encryptedPrefsFormat: EncryptedPrefsFormat,
     private val prefFileList: FileListProvider,
@@ -190,7 +190,7 @@ class ImportExportPrefsImpl @Inject constructor(
                 activity, rh.gs(wrongPwdTitle), rh.gs(R.string.master_password_missing, rh.gs(R.string.protection)), R.string.nav_preferences,
                 { activity.startActivity(Intent(activity, uiInteraction.preferencesActivity).putExtra(UiInteraction.PREFERENCE, UiInteraction.Preferences.PROTECTION)) }
             )
-            exportPasswordCheck.clearPasswordDataStore(context)
+            exportPasswordDataStore.clearPasswordDataStore(context)
             return false
         }
         return true
@@ -202,14 +202,14 @@ class ImportExportPrefsImpl @Inject constructor(
         }
 
         // Get password from secure store when exist and is not empty or expired
-        val storedPassword = exportPasswordCheck.getPasswordFromDataStore(context)
+        val storedPassword = exportPasswordDataStore.getPasswordFromDataStore(context)
         if (storedPassword.first) {
             then(storedPassword.second)
             return
         }
 
         // Make sure stored password is reset
-        exportPasswordCheck.clearPasswordDataStore((context))
+        exportPasswordDataStore.clearPasswordDataStore((context))
         // Ask for entering password and store when successfully entered
         TwoMessagesAlertDialog.showAlert(
             activity, rh.gs(app.aaps.core.ui.R.string.nav_export),
@@ -217,7 +217,7 @@ class ImportExportPrefsImpl @Inject constructor(
             rh.gs(R.string.password_preferences_encrypt_prompt), {
                 askForMasterPassIfNeeded(activity, R.string.preferences_export_canceled)
                 { password ->
-                    then(exportPasswordCheck.putPasswordToDataStore(context, password))
+                    then(exportPasswordDataStore.putPasswordToDataStore(context, password))
                 }
             }, null, R.drawable.ic_header_export
         )

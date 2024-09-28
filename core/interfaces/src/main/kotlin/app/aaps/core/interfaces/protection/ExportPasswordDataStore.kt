@@ -2,7 +2,7 @@ package app.aaps.core.interfaces.protection
 
 import android.content.Context
 
-interface ExportPasswordCheck {
+interface ExportPasswordDataStore {
 
     /***
      * Returns true when Export password store is enabled.

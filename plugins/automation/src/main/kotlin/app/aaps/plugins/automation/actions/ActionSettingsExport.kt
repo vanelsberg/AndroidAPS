@@ -10,7 +10,7 @@ import app.aaps.core.interfaces.db.PersistenceLayer
 import app.aaps.core.interfaces.maintenance.ImportExportPrefs
 import app.aaps.core.interfaces.notifications.NotificationInfoMessage
 import app.aaps.core.interfaces.notifications.NotificationUserMessage
-import app.aaps.core.interfaces.protection.ExportPasswordCheck
+import app.aaps.core.interfaces.protection.ExportPasswordDataStore
 import app.aaps.core.interfaces.queue.Callback
 import app.aaps.core.interfaces.rx.bus.RxBus
 import app.aaps.core.interfaces.rx.events.EventNewNotification
@@ -38,7 +38,7 @@ class ActionSettingsExport(injector: HasAndroidInjector) : Action(injector) {
     @Inject lateinit var config: Config
     @Inject lateinit var persistenceLayer: PersistenceLayer
     @Inject lateinit var importExportPrefs: ImportExportPrefs
-    @Inject lateinit var exportPasswordCheck: ExportPasswordCheck
+    @Inject lateinit var exportPasswordDataStore: ExportPasswordDataStore
 
     private val disposable = CompositeDisposable()
 
@@ -50,14 +50,14 @@ class ActionSettingsExport(injector: HasAndroidInjector) : Action(injector) {
 
     override fun friendlyName(): Int = app.aaps.core.ui.R.string.exportsettings
     override fun shortDescription(): String = rh.gs(R.string.exportsettings_message, text.value)
-    @DrawableRes override fun icon(): Int = app.aaps.core.objects.R.drawable.ic_access_alarm_24dp
+    @DrawableRes override fun icon(): Int = app.aaps.core.objects.R.drawable.ic_export_settings_24dp
 
     override fun isValid(): Boolean = true
 
     override fun doAction(callback: Callback) {
         val message: String
 
-        val storedPassword = exportPasswordCheck.getPasswordFromDataStore(context)
+        val storedPassword = exportPasswordDataStore.getPasswordFromDataStore(context)
         if (storedPassword.first) {
             // We have a password: start exporting & notify info
             importExportPrefs.exportSharedPreferencesNonInteractive(context, storedPassword.second)
@@ -67,7 +67,7 @@ class ActionSettingsExport(injector: HasAndroidInjector) : Action(injector) {
         }
         else {
             // No password, was expired and needs re-entering by user, notify user
-            exportPasswordCheck.clearPasswordDataStore(context)
+            exportPasswordDataStore.clearPasswordDataStore(context)
             message = "Settings export canceled: Re-enter password!"
             val notification = NotificationUserMessage(message)
             rxBus.send(EventNewNotification(notification))

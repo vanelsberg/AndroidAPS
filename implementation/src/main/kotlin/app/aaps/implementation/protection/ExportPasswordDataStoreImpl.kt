@@ -8,7 +8,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import app.aaps.core.interfaces.logging.AAPSLogger
 import app.aaps.core.interfaces.logging.LTag
-import app.aaps.core.interfaces.protection.ExportPasswordCheck
+import app.aaps.core.interfaces.protection.ExportPasswordDataStore
 import app.aaps.core.interfaces.utils.DateUtil
 import dagger.Reusable
 import kotlinx.coroutines.runBlocking
@@ -16,7 +16,7 @@ import javax.inject.Inject
 
 // Password validity window
 // TODO: This should be made configurable?
-const val passwordValidityWindowSeconds: Long = 7 * 24 * 3600 * 1000 // 1 days
+const val passwordValidityWindowSeconds: Long = 7 * 24 * 3600 * 1000 // 7 days
 // const val passwordValidityWindowSeconds: Long = 10 * 60 * 1000 // 10 minutes
 
 // Internal constant stings
@@ -24,9 +24,9 @@ const val datastoreName : String = "app.aaps.plugins.configuration.maintenance.I
 const val passwordPreferenceName = "$datastoreName.password_value"
 
 @Reusable
-class ExportPasswordCheckImpl @Inject constructor(
+class ExportPasswordDataStoreImpl @Inject constructor(
     private var log: AAPSLogger
-) : ExportPasswordCheck {
+) : ExportPasswordDataStore {
 
     @Inject lateinit var dateUtil: DateUtil
 

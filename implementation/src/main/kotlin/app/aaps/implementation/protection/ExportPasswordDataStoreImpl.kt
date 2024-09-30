@@ -123,7 +123,7 @@ class ExportPasswordDataStoreImpl @Inject constructor(
         }
 
         // Update & return password string
-        return updatePrefString(passwordPreferenceName, password)
+        return updatePrefString(passwordPreferenceName, encrypt(password))
     }
 
     /***
@@ -158,7 +158,18 @@ class ExportPasswordDataStoreImpl @Inject constructor(
             return this.clearPasswordDataStore(context)
 
         // Store/update password and return
-        return this.storePassword(context, passwordStr)
+        return this.storePassword(context, decrypt(passwordStr))
+    }
+
+    /***
+     * Preparing for encryption/decryption (needs additional research)
+     */
+    private fun encrypt(str: String): String {
+        return str
+    }
+
+    private fun decrypt(str: String): String {
+        return str
     }
 
 }

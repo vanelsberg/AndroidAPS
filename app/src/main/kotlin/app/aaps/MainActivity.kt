@@ -301,6 +301,7 @@ class MainActivity : DaggerAppCompatActivityWithResult() {
             androidPermission.notifyForBtConnectPermission(this)
         }
         passwordResetCheck(this)
+        exportPasswordCheck(this)
         exportPasswordResetCheck(this)
 
         if (preferences.get(StringKey.ProtectionMasterPassword) == "")
@@ -486,11 +487,11 @@ class MainActivity : DaggerAppCompatActivityWithResult() {
      * reset password to SN of active pump if file exists
      */
     private fun passwordResetCheck(context: Context) {
-        val passwordReset = File(fileListProvider.ensureExtraDirExists(), "PasswordReset")
-        if (passwordReset.exists()) {
+        val fh = File(fileListProvider.ensureExtraDirExists(), "PasswordReset")
+        if (fh.exists()) {
             val sn = activePlugin.activePump.serialNumber()
             preferences.put(StringKey.ProtectionMasterPassword, cryptoUtil.hashPassword(sn))
-            passwordReset.delete()
+            fh.delete()
             // Also clear any stored password
             exportPasswordDataStore.clearPasswordDataStore(context)
             ToastUtils.okToast(context, context.getString(app.aaps.core.ui.R.string.password_set))
@@ -507,6 +508,19 @@ class MainActivity : DaggerAppCompatActivityWithResult() {
             exportPasswordDataStore.clearPasswordDataStore(context)
             exportPasswordReset.delete()
             ToastUtils.okToast(context, context.getString(app.aaps.core.ui.R.string.datastore_password_cleared))
+        }
+    }
+
+    /**
+     * TODO: While in dev only: make this configurable<?> or delete when implementation is excepted:
+     * Check for existing EnableExportPassword file,
+     * Enable Export password if exist
+    */
+    private fun exportPasswordCheck(context: Context) {
+        val enableExportPassword = File(fileListProvider.ensureExtraDirExists(), "EnableExportPassword")
+        if (enableExportPassword.exists()) {
+            exportPasswordDataStore.enableExportPasswordStore(context, true)
+            ToastUtils.okToast(context, "Export password enabled")
         }
     }
 

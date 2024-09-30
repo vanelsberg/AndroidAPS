@@ -57,18 +57,24 @@ class ActionSettingsExport(injector: HasAndroidInjector) : Action(injector) {
     override fun doAction(callback: Callback) {
         val message: String
 
-        val storedPassword = exportPasswordDataStore.getPasswordFromDataStore(context)
-        if (storedPassword.first) {
-            // We have a password: start exporting & notify info
-            importExportPrefs.exportSharedPreferencesNonInteractive(context, storedPassword.second)
-            message = "Settings exported"
-            val notification = NotificationInfoMessage(message)
-            rxBus.send(EventNewNotification(notification))
+        if (exportPasswordDataStore.exportPasswordStoreEnabled()) {
+            val storedPassword = exportPasswordDataStore.getPasswordFromDataStore(context)
+            if (storedPassword.first) {
+                // We have a password: start exporting & notify info
+                importExportPrefs.exportSharedPreferencesNonInteractive(context, storedPassword.second)
+                message = "Settings exported"
+                val notification = NotificationInfoMessage(message)
+                rxBus.send(EventNewNotification(notification))
+            } else {
+                // No password, was expired and needs re-entering by user, notify user
+                exportPasswordDataStore.clearPasswordDataStore(context)
+                message = "Settings export canceled: Re-enter password!"
+                val notification = NotificationUserMessage(message)
+                rxBus.send(EventNewNotification(notification))
+            }
         }
         else {
-            // No password, was expired and needs re-entering by user, notify user
-            exportPasswordDataStore.clearPasswordDataStore(context)
-            message = "Settings export canceled: Re-enter password!"
+            message = "Warning (automation): Settings export not enabled!"
             val notification = NotificationUserMessage(message)
             rxBus.send(EventNewNotification(notification))
         }

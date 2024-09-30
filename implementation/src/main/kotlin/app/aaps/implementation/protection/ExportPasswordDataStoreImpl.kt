@@ -30,27 +30,40 @@ class ExportPasswordDataStoreImpl @Inject constructor(
 
     @Inject lateinit var dateUtil: DateUtil
 
-    // TODO: (Draft) Review security on storing password in phone's local data store
+    // TODO: Review security aspects on temporarily storing password in phone's local data store
 
     private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(
         name = datastoreName
     )
 
+    private var exportPasswordStoreIsEnabled = false
+
     /***
-     * Returns true when Export password store is enabled.
-     * TODO: <make this configurable?
+     * Enable/disable Export password functionality
+     * TODO: <make this configurable?>
      */
-    override fun ExportPasswordStoreSupported() : Boolean {
-        val exportPasswordStoreSupported = true
-        log.debug(LTag.CORE, "ExportPassword Store Supported: $exportPasswordStoreSupported")
-        return exportPasswordStoreSupported
+    override fun enableExportPasswordStore(context: Context, enable: Boolean) {
+        exportPasswordStoreIsEnabled = enable
+        if (!exportPasswordStoreIsEnabled) {
+            clearPasswordDataStore(context)
+        }
+    }
+
+    /***
+     * Check Export password functionality
+     * Returns true when Export password store is enabled.
+     */
+    override fun exportPasswordStoreEnabled() : Boolean {
+        //log.debug(LTag.CORE, "ExportPassword Store Supported: $exportPasswordStoreIsEnabled")
+        return this.exportPasswordStoreIsEnabled
     }
 
     /***
      * Clear password currently stored to "empty"
      */
     override fun clearPasswordDataStore(context: Context): String {
-        if (!ExportPasswordStoreSupported()) return ""
+        // TODO: For now always clear - eventually also when general functionality is disabled?
+        if (!exportPasswordStoreEnabled()) return ""
 
         log.debug(LTag.CORE, "clearPasswordDataStore")
         // Store & update to empty password and return
@@ -61,7 +74,7 @@ class ExportPasswordDataStoreImpl @Inject constructor(
      * Put password to local phone's datastore
      */
     override fun putPasswordToDataStore(context: Context, password: String): String {
-        if (!ExportPasswordStoreSupported()) return ""
+        if (!exportPasswordStoreEnabled()) return ""
 
         log.debug(LTag.CORE, "putPasswordToDataStore")
         return this.storePassword(context, password)
@@ -72,7 +85,7 @@ class ExportPasswordDataStoreImpl @Inject constructor(
      * Return pair (true,<password>) or (false,"")
      */
     override fun getPasswordFromDataStore(context: Context): Pair<Boolean, String> {
-        if (!ExportPasswordStoreSupported()) return Pair (false, "")
+        if (!exportPasswordStoreEnabled()) return Pair (false, "")
 
         val password = this.retrievePassword(context)
         if (password.isNotEmpty()) {  // And not expired
@@ -124,9 +137,9 @@ class ExportPasswordDataStoreImpl @Inject constructor(
         var timestampStr = ""
 
         runBlocking {
-            val keyname = passwordPreferenceName
-            val preferencesKeyVal = stringPreferencesKey("$keyname.key")
-            val preferencesKeyTs = stringPreferencesKey("$keyname.ts")
+            val keyName = passwordPreferenceName
+            val preferencesKeyVal = stringPreferencesKey("$keyName.key")
+            val preferencesKeyTs = stringPreferencesKey("$keyName.ts")
             context.dataStore.edit { settings ->
                 passwordStr = settings[preferencesKeyVal] ?:""
                 timestampStr = (settings[preferencesKeyTs] ?:"")

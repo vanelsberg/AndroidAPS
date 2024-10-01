@@ -5,11 +5,6 @@ import android.content.Context
 interface ExportPasswordDataStore {
 
     /***
-     * Enable Export password functionality
-     */
-    fun enableExportPasswordStore(context: Context, enable: Boolean)
-
-    /***
      * TODO: While in dev only (delete when implementation is excepted):
      * Check Export password functionality
      * Returns true when Export password store is enabled.

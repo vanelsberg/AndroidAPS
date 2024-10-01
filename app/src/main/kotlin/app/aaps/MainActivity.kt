@@ -301,7 +301,6 @@ class MainActivity : DaggerAppCompatActivityWithResult() {
             androidPermission.notifyForBtConnectPermission(this)
         }
         passwordResetCheck(this)
-        exportPasswordCheck(this)
         exportPasswordResetCheck(this)
 
         if (preferences.get(StringKey.ProtectionMasterPassword) == "")
@@ -508,19 +507,6 @@ class MainActivity : DaggerAppCompatActivityWithResult() {
             exportPasswordDataStore.clearPasswordDataStore(context)
             exportPasswordReset.delete()
             ToastUtils.okToast(context, context.getString(app.aaps.core.ui.R.string.datastore_password_cleared))
-        }
-    }
-
-    /**
-     * TODO: While in dev only: make this configurable<?> or delete when implementation is excepted:
-     * Check for existing EnableExportPassword file,
-     * Enable Export password if exist
-    */
-    private fun exportPasswordCheck(context: Context) {
-        val enableExportPassword = File(fileListProvider.ensureExtraDirExists(), "EnableExportPassword")
-        if (enableExportPassword.exists()) {
-            exportPasswordDataStore.enableExportPasswordStore(context, true)
-            ToastUtils.okToast(context, "Export password enabled")
         }
     }
 

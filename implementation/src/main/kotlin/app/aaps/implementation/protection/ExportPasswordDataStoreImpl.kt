@@ -9,15 +9,13 @@ import androidx.datastore.preferences.preferencesDataStore
 import app.aaps.core.interfaces.logging.AAPSLogger
 import app.aaps.core.interfaces.logging.LTag
 import app.aaps.core.interfaces.protection.ExportPasswordDataStore
+import app.aaps.core.interfaces.sharedPreferences.SP
 import app.aaps.core.interfaces.utils.DateUtil
+import app.aaps.core.keys.BooleanKey
+import app.aaps.core.keys.IntKey
 import dagger.Reusable
 import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
-
-// Password validity window
-// TODO: This should be made configurable?
-const val passwordValidityWindowSeconds: Long = 7 * 24 * 3600 * 1000 // 7 days
-// const val passwordValidityWindowSeconds: Long = 10 * 60 * 1000 // 10 minutes
 
 // Internal constant stings
 const val datastoreName : String = "app.aaps.plugins.configuration.maintenance.ImportExport.datastore"
@@ -25,8 +23,9 @@ const val passwordPreferenceName = "$datastoreName.password_value"
 
 @Reusable
 class ExportPasswordDataStoreImpl @Inject constructor(
-    private var log: AAPSLogger
-) : ExportPasswordDataStore {
+    private var log: AAPSLogger,
+    private val sp: SP
+    ) : ExportPasswordDataStore {
 
     @Inject lateinit var dateUtil: DateUtil
 
@@ -37,33 +36,27 @@ class ExportPasswordDataStoreImpl @Inject constructor(
     )
 
     private var exportPasswordStoreIsEnabled = false
-
-    /***
-     * Enable/disable Export password functionality
-     * TODO: <make this configurable?>
-     */
-    override fun enableExportPasswordStore(context: Context, enable: Boolean) {
-        exportPasswordStoreIsEnabled = enable
-        if (!exportPasswordStoreIsEnabled) {
-            clearPasswordDataStore(context)
-        }
-    }
+    private var passwordValidityWindowSeconds: Long = 0
 
     /***
      * Check Export password functionality
      * Returns true when Export password store is enabled.
      */
     override fun exportPasswordStoreEnabled() : Boolean {
-        //log.debug(LTag.CORE, "ExportPassword Store Supported: $exportPasswordStoreIsEnabled")
-        return this.exportPasswordStoreIsEnabled
+        // Is password storing enabled?
+        exportPasswordStoreIsEnabled = sp.getBoolean(BooleanKey.MaintenanceEnableExportSettingsAutomation.key, false)
+        // Password validity window
+        passwordValidityWindowSeconds = sp.getLong(IntKey.AutoExportPasswordExpiryDays.key, 7) * 24 * 3600 * 1000
+        log.debug(LTag.CORE, "ExportPassword Store Supported: $exportPasswordStoreIsEnabled, expiry days=$passwordValidityWindowSeconds")
+        return exportPasswordStoreIsEnabled
     }
 
     /***
      * Clear password currently stored to "empty"
      */
     override fun clearPasswordDataStore(context: Context): String {
-        // TODO: For now always clear - eventually also when general functionality is disabled?
-        if (!exportPasswordStoreEnabled()) return ""
+        // TODO: For now always clear - also when general functionality is disabled?
+        // if (!exportPasswordStoreEnabled()) return ""
 
         log.debug(LTag.CORE, "clearPasswordDataStore")
         // Store & update to empty password and return

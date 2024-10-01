@@ -68,7 +68,7 @@ class ActionSettingsExport(injector: HasAndroidInjector) : Action(injector) {
             } else {
                 // No password, was expired and needs re-entering by user, notify user
                 exportPasswordDataStore.clearPasswordDataStore(context)
-                message = "Settings export canceled: Re-enter password!"
+                message = "Settings export canceled: Export manually and (re)enter password!"
                 val notification = NotificationUserMessage(message)
                 rxBus.send(EventNewNotification(notification))
             }

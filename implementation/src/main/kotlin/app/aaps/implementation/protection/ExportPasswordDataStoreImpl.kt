@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import app.aaps.core.interfaces.logging.AAPSLogger
 import app.aaps.core.interfaces.logging.LTag
+import app.aaps.core.interfaces.maintenance.FileListProvider
 import app.aaps.core.interfaces.protection.ExportPasswordDataStore
 import app.aaps.core.interfaces.sharedPreferences.SP
 import app.aaps.core.interfaces.utils.DateUtil
@@ -15,6 +16,7 @@ import app.aaps.core.keys.BooleanKey
 // import app.aaps.core.keys.IntKey
 import dagger.Reusable
 import kotlinx.coroutines.runBlocking
+import java.io.File
 import javax.inject.Inject
 
 // Internal constant stings
@@ -28,6 +30,10 @@ class ExportPasswordDataStoreImpl @Inject constructor(
     ) : ExportPasswordDataStore {
 
     @Inject lateinit var dateUtil: DateUtil
+
+    // TODO: Remove for release (Debug only!)
+    @Inject lateinit var fileListProvider: FileListProvider
+
 
     // TODO: Review security aspects on temporarily storing password in phone's local data store
 
@@ -55,7 +61,8 @@ class ExportPasswordDataStoreImpl @Inject constructor(
      * Returns true when Export password store is enabled.
      */
     override fun exportPasswordStoreEnabled() : Boolean {
-        val debug = true
+        // TODO: Remove for release (Debug only!)
+        val debug = File(fileListProvider.ensureExtraDirExists(), "DebugUnattendedExport").exists()
 
         // Is password storing enabled?
         exportPasswordStoreIsEnabled  = sp.getBoolean(BooleanKey.MaintenanceEnableExportSettingsAutomation.key, false)

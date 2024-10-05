@@ -74,8 +74,10 @@ class ExportPasswordDataStoreImpl @Inject constructor(
             passwordExpiryGracePeriod = 7 * 24 * 3600 * 1000L        // 1 week
         } else {
             /*** Debug mode ***/
-            passwordValidityWindowSeconds = 20 * 60 * 1000L // Valid for 20 min
-            passwordExpiryGracePeriod = 10 * 60 * 1000L // Grace period 10 min
+            // passwordValidityWindowSeconds = 20 * 60 * 1000L // Valid for 20 min
+            // passwordExpiryGracePeriod = 10 * 60 * 1000L // Grace period 10 min
+            passwordValidityWindowSeconds = 1 * 24 * 3600 * 1000L // 1 Day
+            passwordExpiryGracePeriod     = 1 * 24 * 3600 * 1000L // 1 Day
         }
 
         log.debug(LTag.CORE, "ExportPassword Store Supported: $exportPasswordStoreIsEnabled, expiry days=$passwordValidityWindowSeconds")
@@ -220,7 +222,7 @@ class ExportPasswordDataStoreImpl @Inject constructor(
     }
 
     /***
-     * Preparing for encryption/decryption (needs additional research)
+     * TODO: Preparing for encryption/decryption (needs additional implementation)
      */
     private fun encrypt(str: String): String {
         return str

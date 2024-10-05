@@ -235,7 +235,7 @@ class MaintenancePlugin @Inject constructor(
     }
 
     override fun addPreferenceScreen(preferenceManager: PreferenceManager, parent: PreferenceScreen, context: Context, requiredKey: String?) {
-        if (requiredKey != null && !(requiredKey == "data_choice_setting" || requiredKey == "export_settings_automation")) return
+        if (requiredKey != null && !(requiredKey == "data_choice_setting" || requiredKey == "enable_unattended_export")) return
         val category = PreferenceCategory(context)
         parent.addPreference(category)
         category.apply {
@@ -257,16 +257,16 @@ class MaintenancePlugin @Inject constructor(
             })
 
             addPreference(preferenceManager.createPreferenceScreen(context).apply {
-                key = "export_settings_automation"
-                title = rh.gs(R.string.export_settings_automation)
+                key = "enable_unattended_export"
+                title = rh.gs(R.string.unattended_settings_export)
                 addPreference(AdaptiveSwitchPreference(ctx = context, booleanKey = BooleanKey.MaintenanceEnableExportSettingsAutomation,
-                    title = R.string.export_settings_automation,
-                    summary = R.string.export_settings_automation_summary
+                    title = R.string.unattended_settings_export,
+                    summary = R.string.unattended_settings_export_summary
                     )
                 )
                 // addPreference(AdaptiveIntPreference(ctx = context, intKey = IntKey.AutoExportPasswordExpiryDays,
-                //     title = R.string.export_settings_automation_password_expiry,
-                //     summary = R.string.export_settings_automation_password_expiry_summary
+                //     title = R.string.unattended_settings_export_password_expiry,
+                //     summary = R.string.unattended_settings_export_password_expiry_summary
                 //     )
                 // )
             })

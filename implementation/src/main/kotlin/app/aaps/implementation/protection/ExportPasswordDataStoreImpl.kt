@@ -71,12 +71,12 @@ class ExportPasswordDataStoreImpl @Inject constructor(
             // Password validity window (default should be 5 weeks, minimum 1 week)
             // passwordValidityWindowSeconds = sp.getLong(IntKey.AutoExportPasswordExpiryDays.key, 35) * 24 * 3600 * 1000
             passwordValidityWindowSeconds = 35 * 24 * 3600 * 1000L   // 5 weeks (including grace period)
-            passwordExpiryGracePeriod = 7 * 24 * 3600 * 1000L        // 1 week
+            passwordExpiryGracePeriod     =  7 * 24 * 3600 * 1000L   // 1 week
         } else {
             /*** Debug mode ***/
             // passwordValidityWindowSeconds = 20 * 60 * 1000L // Valid for 20 min
             // passwordExpiryGracePeriod = 10 * 60 * 1000L // Grace period 10 min
-            passwordValidityWindowSeconds = 1 * 24 * 3600 * 1000L // 1 Day
+            passwordValidityWindowSeconds = 2 * 24 * 3600 * 1000L // 2 Days (including grace periodee)
             passwordExpiryGracePeriod     = 1 * 24 * 3600 * 1000L // 1 Day
         }
 

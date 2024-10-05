@@ -25,6 +25,6 @@ interface ExportPasswordDataStore {
      * Get password from local phone's data store.
      * Return pair (true,<password>) or (false,"")
      */
-    fun getPasswordFromDataStore(context: Context): Pair<Boolean, String>
+    fun getPasswordFromDataStore(context: Context): Triple<String, Boolean, Boolean>
 
-}
+    }

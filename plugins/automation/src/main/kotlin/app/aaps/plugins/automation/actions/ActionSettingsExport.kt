@@ -8,7 +8,7 @@ import app.aaps.core.data.ue.Sources
 import app.aaps.core.interfaces.configuration.Config
 import app.aaps.core.interfaces.db.PersistenceLayer
 import app.aaps.core.interfaces.maintenance.ImportExportPrefs
-import app.aaps.core.interfaces.notifications.NotificationInfoMessage
+import app.aaps.core.interfaces.notifications.Notification
 import app.aaps.core.interfaces.notifications.NotificationUserMessage
 import app.aaps.core.interfaces.protection.ExportPasswordDataStore
 import app.aaps.core.interfaces.queue.Callback
@@ -58,24 +58,41 @@ class ActionSettingsExport(injector: HasAndroidInjector) : Action(injector) {
         val message: String
 
         if (exportPasswordDataStore.exportPasswordStoreEnabled()) {
-            val storedPassword = exportPasswordDataStore.getPasswordFromDataStore(context)
-            if (storedPassword.first) {
-                // We have a password: start exporting & notify info
-                importExportPrefs.exportSharedPreferencesNonInteractive(context, storedPassword.second)
-                message = "Settings exported"
-                val notification = NotificationInfoMessage(message)
-                rxBus.send(EventNewNotification(notification))
-            } else {
-                // No password, was expired and needs re-entering by user, notify user
-                exportPasswordDataStore.clearPasswordDataStore(context)
-                message = "Settings export canceled: Export manually and (re)enter password!"
-                val notification = NotificationUserMessage(message)
-                rxBus.send(EventNewNotification(notification))
+            // Send user notification when done
+            var notification: Notification
+
+            // Returns Triple:
+            val (password, isExpired, isAboutToExpire) = exportPasswordDataStore.getPasswordFromDataStore(context)
+
+            if (password.isNotEmpty() && !isExpired) { // Password is not empty and not isExpired
+                // Password is not empty and not expired
+                if (isAboutToExpire) {
+                    // Password is about to expire and needs re-entering by user soon: notify user
+                    // Note: we are allowed to export!
+                    message = "Settings exported: password about to expire soon. Export manually and (re)enter password."
+                    notification = NotificationUserMessage(message, Notification.LOW)  // LOW -> e.g. color ORANGE
+                } else {
+                    // We have a valid password: start exporting, then notify
+                    message = "Settings exported"
+                    notification = NotificationUserMessage(message, Notification.INFO) // INFO -> e.g. color GREEN
+                }
+                // Execute settings export, then notify user
+                importExportPrefs.exportSharedPreferencesNonInteractive(context, password)
             }
+            else {
+                // No password or was expired and needs re-entering by user
+                message = "Settings export canceled: password expired. Export manually and (re)enter!"
+                notification = NotificationUserMessage(message, Notification.URGENT)  // Urgent -> e.g. color RED
+                // Clear password in datastore, then notify user
+                exportPasswordDataStore.clearPasswordDataStore(context)
+            }
+            // send notification
+            rxBus.send(EventNewNotification(notification))
         }
         else {
+            // Not enabled, do nothing and notify user
             message = "Warning (automation): Settings export not enabled!"
-            val notification = NotificationUserMessage(message)
+            val notification = NotificationUserMessage(message, Notification.URGENT)
             rxBus.send(EventNewNotification(notification))
         }
 

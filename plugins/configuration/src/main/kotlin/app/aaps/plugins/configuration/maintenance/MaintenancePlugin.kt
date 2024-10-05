@@ -264,11 +264,11 @@ class MaintenancePlugin @Inject constructor(
                     summary = R.string.export_settings_automation_summary
                     )
                 )
-                addPreference(AdaptiveIntPreference(ctx = context, intKey = IntKey.AutoExportPasswordExpiryDays,
-                    title = R.string.export_settings_automation_password_expiry,
-                    summary = R.string.export_settings_automation_password_expiry_summary
-                    )
-                )
+                // addPreference(AdaptiveIntPreference(ctx = context, intKey = IntKey.AutoExportPasswordExpiryDays,
+                //     title = R.string.export_settings_automation_password_expiry,
+                //     summary = R.string.export_settings_automation_password_expiry_summary
+                //     )
+                // )
             })
         }
     }

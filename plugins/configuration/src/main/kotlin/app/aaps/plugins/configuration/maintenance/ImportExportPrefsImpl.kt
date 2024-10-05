@@ -196,20 +196,25 @@ class ImportExportPrefsImpl @Inject constructor(
         return true
     }
 
+    /***
+     * Ask to confirm export unless a valid password is already available
+     */
     private fun askToConfirmExport(activity: FragmentActivity, fileToExport: File, then: ((password: String) -> Unit)) {
         if (!assureMasterPasswordSet(activity, app.aaps.core.ui.R.string.nav_export)) {
             return
         }
 
-        // Get password from secure store when exist and is not empty or expired
-        val storedPassword = exportPasswordDataStore.getPasswordFromDataStore(context)
-        if (storedPassword.first) {
-            then(storedPassword.second)
+        // Get password from datastore
+        val storedPassword = exportPasswordDataStore.getPasswordFromDataStore(context)  //TODO: Make this returning data class ClassPasswordData!
+        if (storedPassword.first.isNotEmpty() && !(storedPassword.second || storedPassword.third)){
+            // We have a password (first) that is not (expired (second) or about to expire (third)
+            then(storedPassword.first)
             return
         }
 
-        // Make sure stored password is reset
+        // Make sure stored password is properly reset
         exportPasswordDataStore.clearPasswordDataStore((context))
+
         // Ask for entering password and store when successfully entered
         TwoMessagesAlertDialog.showAlert(
             activity, rh.gs(app.aaps.core.ui.R.string.nav_export),

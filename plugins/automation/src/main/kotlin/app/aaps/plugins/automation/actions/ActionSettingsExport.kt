@@ -34,7 +34,6 @@ class ActionSettingsExport(injector: HasAndroidInjector) : Action(injector) {
     @Inject lateinit var rxBus: RxBus
     @Inject lateinit var context: Context
     @Inject lateinit var dateUtil: DateUtil
-    @Inject lateinit var timerUtil: TimerUtil
     @Inject lateinit var config: Config
     @Inject lateinit var persistenceLayer: PersistenceLayer
     @Inject lateinit var importExportPrefs: ImportExportPrefs
@@ -44,9 +43,9 @@ class ActionSettingsExport(injector: HasAndroidInjector) : Action(injector) {
 
     var text = InputString()
 
-    constructor(injector: HasAndroidInjector, text: String) : this(injector) {
-        this.text = InputString(text)
-    }
+    // constructor(injector: HasAndroidInjector, text: String) : this(injector) {
+    //     this.text = InputString(text)
+    // }
 
     override fun friendlyName(): Int = app.aaps.core.ui.R.string.exportsettings
     override fun shortDescription(): String = rh.gs(R.string.exportsettings_message, text.value)
@@ -59,7 +58,7 @@ class ActionSettingsExport(injector: HasAndroidInjector) : Action(injector) {
 
         if (exportPasswordDataStore.exportPasswordStoreEnabled()) {
             // Send user notification when done
-            var notification: Notification
+            val notification: Notification
 
             // Returns Triple:
             val (password, isExpired, isAboutToExpire) = exportPasswordDataStore.getPasswordFromDataStore(context)

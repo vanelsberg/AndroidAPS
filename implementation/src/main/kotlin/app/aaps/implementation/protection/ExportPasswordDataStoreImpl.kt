@@ -12,7 +12,7 @@ import app.aaps.core.interfaces.protection.ExportPasswordDataStore
 import app.aaps.core.interfaces.sharedPreferences.SP
 import app.aaps.core.interfaces.utils.DateUtil
 import app.aaps.core.keys.BooleanKey
-import app.aaps.core.keys.IntKey
+// import app.aaps.core.keys.IntKey
 import dagger.Reusable
 import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
@@ -43,7 +43,7 @@ class ExportPasswordDataStoreImpl @Inject constructor(
     /***
      * Data class holding password attributes
      */
-    public data class ClassPasswordData(
+    data class ClassPasswordData(
         var password: String,
         var timestamp: Long,
         var isExpired: Boolean,
@@ -63,12 +63,12 @@ class ExportPasswordDataStoreImpl @Inject constructor(
         if (exportPasswordStoreIsEnabled) if (!debug) {
             // Password validity window (default should be 5 weeks, minimum 1 week)
             // passwordValidityWindowSeconds = sp.getLong(IntKey.AutoExportPasswordExpiryDays.key, 35) * 24 * 3600 * 1000
-            passwordValidityWindowSeconds = 35 * 24 * 3600 * 1000   // 5 weeks (including grace period)
-            passwordExpiryGracePeriod = 7 * 24 * 3600 * 1000        // 1 week
+            passwordValidityWindowSeconds = 35 * 24 * 3600 * 1000L   // 5 weeks (including grace period)
+            passwordExpiryGracePeriod = 7 * 24 * 3600 * 1000L        // 1 week
         } else {
             /*** Debug mode ***/
-            passwordValidityWindowSeconds = 20 * 60 * 1000 // Valid for 20 min
-            passwordExpiryGracePeriod = 10 * 60 * 1000 // Grace period 10 min
+            passwordValidityWindowSeconds = 20 * 60 * 1000L // Valid for 20 min
+            passwordExpiryGracePeriod = 10 * 60 * 1000L // Grace period 10 min
         }
 
         log.debug(LTag.CORE, "ExportPassword Store Supported: $exportPasswordStoreIsEnabled, expiry days=$passwordValidityWindowSeconds")
@@ -188,7 +188,7 @@ class ExportPasswordDataStoreImpl @Inject constructor(
         }
 
         val classPasswordData = ClassPasswordData(
-            password = passwordStr,
+            password = decrypt(passwordStr),
             timestamp = if (timestampStr.isEmpty()) 0L else timestampStr.toLong(),
             isExpired = true,
             isAboutToExpire =  true

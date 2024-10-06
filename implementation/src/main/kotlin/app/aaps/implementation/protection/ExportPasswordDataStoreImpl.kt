@@ -10,6 +10,7 @@ import app.aaps.core.interfaces.logging.AAPSLogger
 import app.aaps.core.interfaces.logging.LTag
 import app.aaps.core.interfaces.maintenance.FileListProvider
 import app.aaps.core.interfaces.protection.ExportPasswordDataStore
+import app.aaps.core.interfaces.protection.SecureEncrypt
 import app.aaps.core.interfaces.sharedPreferences.SP
 import app.aaps.core.interfaces.utils.DateUtil
 import app.aaps.core.keys.BooleanKey
@@ -30,12 +31,10 @@ class ExportPasswordDataStoreImpl @Inject constructor(
     ) : ExportPasswordDataStore {
 
     @Inject lateinit var dateUtil: DateUtil
+    @Inject lateinit var secureEncrypt: SecureEncrypt
 
     // TODO: Remove for release (Debug only!)
     @Inject lateinit var fileListProvider: FileListProvider
-
-
-    // TODO: Review security aspects on temporarily storing password in phone's local data store
 
     private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(
         name = datastoreName
@@ -43,7 +42,7 @@ class ExportPasswordDataStoreImpl @Inject constructor(
 
     // On enabling & password expiry
     private var exportPasswordStoreIsEnabled = false
-    private var passwordValidityWindowSeconds: Long = 0 // Read from settings
+    private var passwordValidityWindow: Long = 0 // Read from settings
     private var passwordExpiryGracePeriod: Long = 0     // Set on enable
 
     /***
@@ -70,17 +69,17 @@ class ExportPasswordDataStoreImpl @Inject constructor(
         if (exportPasswordStoreIsEnabled) if (!debug) {
             // Password validity window (default should be 5 weeks, minimum 1 week)
             // passwordValidityWindowSeconds = sp.getLong(IntKey.AutoExportPasswordExpiryDays.key, 35) * 24 * 3600 * 1000
-            passwordValidityWindowSeconds = 35 * 24 * 3600 * 1000L   // 5 weeks (including grace period)
+            passwordValidityWindow = 35 * 24 * 3600 * 1000L   // 5 weeks (including grace period)
             passwordExpiryGracePeriod     =  7 * 24 * 3600 * 1000L   // 1 week
         } else {
             /*** Debug mode ***/
-            // passwordValidityWindowSeconds = 20 * 60 * 1000L // Valid for 20 min
-            // passwordExpiryGracePeriod = 10 * 60 * 1000L // Grace period 10 min
-            passwordValidityWindowSeconds = 2 * 24 * 3600 * 1000L // 2 Days (including grace periodee)
-            passwordExpiryGracePeriod     = 1 * 24 * 3600 * 1000L // 1 Day
+            passwordValidityWindow = 20 * 60 * 1000L              // Valid for 20 min
+            passwordExpiryGracePeriod = passwordValidityWindow/2  // Grace period 10 min
+            // passwordValidityWindowSeconds = 2 * 24 * 3600 * 1000L           // 2 Days (including grace periodee)
+            // passwordExpiryGracePeriod     = passwordValidityWindowSeconds/2 // // Grace period 1 days
         }
 
-        log.debug(LTag.CORE, "ExportPassword Store Supported: $exportPasswordStoreIsEnabled, expiry days=$passwordValidityWindowSeconds")
+        log.debug(LTag.CORE, "ExportPassword Store Supported: $exportPasswordStoreIsEnabled, expiry msecs=$passwordValidityWindow")
         return exportPasswordStoreIsEnabled
     }
 
@@ -173,7 +172,7 @@ class ExportPasswordDataStoreImpl @Inject constructor(
         }
 
         // Update & return password string
-        return updatePrefString(passwordPreferenceName, encrypt(password))
+        return updatePrefString(passwordPreferenceName, secureEncrypt.encrypt(password))
     }
 
     /***
@@ -197,7 +196,7 @@ class ExportPasswordDataStoreImpl @Inject constructor(
         }
 
         val classPasswordData = ClassPasswordData(
-            password = decrypt(passwordStr),
+            password = secureEncrypt.decrypt(passwordStr),
             timestamp = if (timestampStr.isEmpty()) 0L else timestampStr.toLong(),
             isExpired = true,
             isAboutToExpire =  true
@@ -208,7 +207,7 @@ class ExportPasswordDataStoreImpl @Inject constructor(
             return classPasswordData
 
         // Password is defined: Check for password expiry:
-        val (expired, expires) = isInValidityWindow(classPasswordData.timestamp, passwordValidityWindowSeconds, passwordExpiryGracePeriod)
+        val (expired, expires) = isInValidityWindow(classPasswordData.timestamp, passwordValidityWindow, passwordExpiryGracePeriod)
         classPasswordData.isExpired = expired
         classPasswordData.isAboutToExpire = expires
 
@@ -221,15 +220,15 @@ class ExportPasswordDataStoreImpl @Inject constructor(
         return classPasswordData
     }
 
-    /***
-     * TODO: Preparing for encryption/decryption (needs additional implementation)
-     */
-    private fun encrypt(str: String): String {
-        return str
-    }
-
-    private fun decrypt(str: String): String {
-        return str
-    }
+    // /***
+    //  * TODO: Preparing for encryption/decryption (needs additional implementation)
+    //  */
+    // private fun encrypt(str: String): String {
+    //     return str
+    // }
+    //
+    // private fun decrypt(str: String): String {
+    //     return str
+    // }
 
 }

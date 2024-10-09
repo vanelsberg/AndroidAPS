@@ -1,14 +1,12 @@
 package app.aaps.core.interfaces.protection
 
-// import android.content.Context
-
 interface SecureEncrypt {
 
     /***
      * Encrypt plaintext secret
      * - plaintextSecret: Plain text string to be encrypted
      * - keystoreAlias: KeyStore alias name for encryption/decryption
-     * Returns: secret
+     * Returns: encrypted or empty string
      */
     fun encrypt(plaintextSecret: String, keystoreAlias: String): String
 

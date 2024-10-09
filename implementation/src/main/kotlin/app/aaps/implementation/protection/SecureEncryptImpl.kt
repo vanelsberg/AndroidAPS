@@ -1,10 +1,8 @@
 package app.aaps.implementation.protection
 
-//import android.content.Context
 import app.aaps.core.interfaces.logging.AAPSLogger
 import app.aaps.core.interfaces.logging.LTag
 import app.aaps.core.interfaces.protection.SecureEncrypt
-//import dagger.Reusable
 import javax.inject.Inject
 
 /***
@@ -14,12 +12,27 @@ import javax.inject.Inject
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import app.aaps.core.utils.hexStringToByteArray
+import java.io.IOException
+import java.security.InvalidKeyException
 import java.security.KeyStore
+import java.security.KeyStoreException
+import java.security.NoSuchAlgorithmException
+import java.security.NoSuchProviderException
+import java.security.UnrecoverableKeyException
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 import javax.inject.Singleton
+
+/***
+ * Implementation for class SecureEncrypt
+ *
+ * This provides functions for encrypting/decrypting plain text strings using the Android KeyStore.
+ * The Android Keystore system stores cryptographic keys in a container to make them more difficult to extract
+ * from the device. Once keys are in the keystore, they can be used cryptographic operations, with the key material
+ * remaining non-exportable.
+ */
 
 //@Reusable
 @Singleton
@@ -37,20 +50,21 @@ class SecureEncryptImpl @Inject constructor(
      * Encrypt plaintext secret
      * - plaintextSecret: Plain text string to be encrypted
      * - keystoreAlias: KeyStore alias name for encryption/decryption
-     * Returns: secret
+     * Returns: encrypted or empty string
      */
     override fun encrypt(plaintextSecret: String, keystoreAlias: String): String {
-        var secret = ""
+        //
         if (!plaintextSecret.isEmpty()) {
             // Encrypt original data string
             val classEncryptedData = keyStoreEncrypt(keystoreAlias, plaintextSecret)
-            secret = getDataStringFromClassEncryptedData(classEncryptedData)
-            log.debug(LTag.CORE, "$module: Stored encryption secret!?.")
+            val secret = getDataStringFromClassEncryptedData(classEncryptedData)
+            log.debug(LTag.CORE, "$module: encrypt() stored encryption secret.")
+            return secret
         }
         else {
-            log.debug(LTag.CORE, "$module: not encrypting empty secret!?.")
+            log.debug(LTag.CORE, "$module: encrypt() not encrypting empty secret.")
         }
-        return secret
+        return ""
     }
 
     /***
@@ -59,21 +73,19 @@ class SecureEncryptImpl @Inject constructor(
      * Returns: decrypted text string
      */
     override fun decrypt(encryptedSecret: String): String {
-        // doTest() // Do debug/tests....
-
         // Retrieve encryption secret from preferences
-        var decryptedSecret = ""
         if (!encryptedSecret.isEmpty()) {
             // Prepare for decryption
             val classEncryptedData = putDataStringToClassEncryptedData(encryptedSecret)
             // Decrypt string
-            decryptedSecret = keyStoreDecrypt(classEncryptedData)
-            log.debug(LTag.CORE, "$module: secret decrypted.")
+            val decryptedSecret = keyStoreDecrypt(classEncryptedData)
+            log.debug(LTag.CORE, "$module: decrypt() secret decrypted.")
+            return decryptedSecret
         }
         else
-            log.debug(LTag.CORE, "$module: empty secret not decrypted.")
+            log.debug(LTag.CORE, "$module: decrypt() empty not decrypting empty secret.")
 
-        return decryptedSecret
+        return ""
     }
 
 
@@ -82,31 +94,39 @@ class SecureEncryptImpl @Inject constructor(
     *************************************************************************/
 
     /***
-     * Generate new or get existing alias key from local phones KeyStore
+     * getKeyFromKeyStore() generates new or gets existing alias key from local phones KeyStore
      * - keyAlias: KeyStore alias name to use
-     * - forcenew: Force generate new key
+     * - forceNew: Force generate new key
      * Returns: New or existing KeyStore key for alias
+     *
+     * Note getKeyFromKeyStore can throw the following exceptions:
+     *  is KeyStoreException,
+     *  is NoSuchAlgorithmException,
+     *  is InvalidKeyException
+     *  is UnrecoverableKeyException
+     *  is NoSuchProviderException
+     *  is IOException
+     *
      */
     private fun getKeyFromKeyStore(keyAlias: String, forceNew: Boolean = false): SecretKey {
-        // TODO: Handle exceptions
-
+        // Get KeyStore instance
         val keyStore = KeyStore.getInstance("AndroidKeyStore")
         keyStore.load(null)
         val keyStoreIsAvailable = keyStore.containsAlias(keyAlias)
 
+        // Create new KeyStore alias or reuse existing key generation or retrieval
         if (!keyStoreIsAvailable || forceNew) {
             // Keystore alias does not exist in KeyStore: generate new key
             val keyGenParameterSpec = KeyGenParameterSpec.Builder(
-                keyAlias,KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
-                )
+                keyAlias, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
+            )
                 .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
                 .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
                 .build()
             val keyGenerator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
             keyGenerator.init(keyGenParameterSpec)
             return keyGenerator.generateKey()
-        }
-        else {
+        } else {
             // Alias exists in KeyStore: retrieve key
             return retrieveSecretKeyFromKeyStore(keyAlias)
         }
@@ -153,18 +173,18 @@ class SecureEncryptImpl @Inject constructor(
     )
 
     /**
-     * Get classEncryptedData into one single String formatted "<hexdata1><separator><hexdata2>" for easy storing.
+     * Get classEncryptedData into one single String formatted "<keyStoreAlis><separator><ivHexString><separator><encryptedDataHexString>" for easy storing.
      * - ClassEncryptedData object containing encryption data
      * Returns: plaintext String formatted "<ivHexString><separator><encryptedDataHexString>"
      */
     private fun getDataStringFromClassEncryptedData(classEncryptedData: ClassEncryptedData): String
     {
         return buildString {
-        append(classEncryptedData.keyStoreAlias)
-        append(hexStringSeparator)
-        append(classEncryptedData.ivHexString)
-        append(hexStringSeparator)
-        append(classEncryptedData.encryptedDataHexString)
+            append(classEncryptedData.keyStoreAlias)
+            append(hexStringSeparator)
+            append(classEncryptedData.ivHexString)
+            append(hexStringSeparator)
+            append(classEncryptedData.encryptedDataHexString)
         }
     }
 
@@ -175,19 +195,10 @@ class SecureEncryptImpl @Inject constructor(
     private fun putDataStringToClassEncryptedData(dataString: String): ClassEncryptedData
     {
         val data = dataString.split(hexStringSeparator)
-        return if (data.size == 3) {
-            ClassEncryptedData(
-                keyStoreAlias = data[0],
-                ivHexString = data[1],
-                encryptedDataHexString = data[2]
-            )
-        } else {
-            ClassEncryptedData (
-                keyStoreAlias = "",
-                ivHexString = "",
-                encryptedDataHexString = ""
-            )
-        }
+        return if (data.size == 3)
+            ClassEncryptedData(keyStoreAlias = data[0], ivHexString = data[1], encryptedDataHexString = data[2])
+        else
+            ClassEncryptedData (keyStoreAlias = "", ivHexString = "", encryptedDataHexString = "")
     }
 
     /***
@@ -196,28 +207,43 @@ class SecureEncryptImpl @Inject constructor(
      */
     @OptIn(ExperimentalStdlibApi::class)
     private fun keyStoreEncrypt(keyAlias: String, originalDataString: String): ClassEncryptedData {
-        // TODO: Handle exceptions!
+        // Initialize data class
+        var classEncryptedData = ClassEncryptedData(keyStoreAlias = keyAlias, ivHexString = "", encryptedDataHexString = "")
 
-        // Get secret key
-        val secretKey = getKeyFromKeyStore(keyAlias)
+        try {
+            // Get secret key
+            val secretKey = getKeyFromKeyStore(keyAlias)
 
-        // Initialize Cipher for encryption & get iv
-        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        cipher.init(Cipher.ENCRYPT_MODE, secretKey)
-        val ivHex = cipher.iv.toHexString()
+            // Initialize Cipher for encryption & get iv
+            val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+            cipher.init(Cipher.ENCRYPT_MODE, secretKey)
+            val ivHex = cipher.iv.toHexString()
 
-        // Encrypt Data
-        val originalData = originalDataString.toByteArray()
-        val encryptedData = cipher.doFinal(originalData)
+            // Encrypt Data
+            val originalData = originalDataString.toByteArray()
+            val encryptedData = cipher.doFinal(originalData)
 
-        val classEncryptedData = ClassEncryptedData (
-            keyStoreAlias = keyAlias,
-            ivHexString = ivHex,
-            encryptedDataHexString = encryptedData.toHexString()
-        )
-        println("Encryption, keyStoreAlias: $classEncryptedData.keyStoreAlias")
-        println("Encryption, iv(hex)  : $classEncryptedData.ivHex")
-        println("Encryption, Text(hex): $classEncryptedData.encryptedDataHexString")
+            classEncryptedData = ClassEncryptedData (
+                keyStoreAlias = keyAlias,
+                ivHexString = ivHex,
+                encryptedDataHexString = encryptedData.toHexString()
+            )
+            println("Encryption, keyStoreAlias: $classEncryptedData.keyStoreAlias")
+            println("Encryption, iv(hex)  : $classEncryptedData.ivHex")
+            println("Encryption, Text(hex): $classEncryptedData.encryptedDataHexString")
+        }
+        catch (e: Exception) {
+            when (e) {
+                is KeyStoreException,
+                is NoSuchAlgorithmException,
+                is InvalidKeyException,
+                is UnrecoverableKeyException,
+                is NoSuchProviderException,
+                is IOException -> {
+                    log.error(LTag.CORE, "$module: keyStoreEncrypt, msg=${e.message}, $e")
+                }
+            }
+        }
         return classEncryptedData
     }
 
@@ -225,7 +251,7 @@ class SecureEncryptImpl @Inject constructor(
      * Decrypt plaintext data string using KeyStore alias
      * - keyAlias: KeyStore alias to use
      * - classEncryptedData: initialized ClassEncryptedData object
-     * Returns: Decrypted plaintext string or empty string when no encrypted data
+     * Returns: Decrypted plaintext string or empty string when error or no encrypted data
      */
     private fun keyStoreDecrypt(classEncryptedData: ClassEncryptedData): String {
         // TODO: Handle exceptions!
@@ -234,22 +260,39 @@ class SecureEncryptImpl @Inject constructor(
             return ""
         }
 
-        // Get decryption parameters
-        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        val iv: ByteArray = classEncryptedData.ivHexString.hexStringToByteArray()
-        val secretKey: SecretKey = retrieveSecretKeyFromKeyStore(classEncryptedData.keyStoreAlias)
+        // Initialise
+        var decryptedDataString = ""
 
-        // Initialize Cipher instance we already have?
-        val ivParameterSpec = GCMParameterSpec(128, iv) // Use GCMParameterSpec
-        cipher.init(Cipher.DECRYPT_MODE, secretKey, ivParameterSpec)
+        try {
+            // Get decryption parameters
+            val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+            val iv: ByteArray = classEncryptedData.ivHexString.hexStringToByteArray()
+            val secretKey: SecretKey = retrieveSecretKeyFromKeyStore(classEncryptedData.keyStoreAlias)
 
-        // Decrypt
-        val dataToDecrypt = hexStringToByteArray(classEncryptedData.encryptedDataHexString)
-        val decryptedData = cipher.doFinal(dataToDecrypt)
-        val decryptedDataString=String(decryptedData)
+            // Initialize Cipher instance we already have?
+            val ivParameterSpec = GCMParameterSpec(128, iv) // Use GCMParameterSpec
+            cipher.init(Cipher.DECRYPT_MODE, secretKey, ivParameterSpec)
 
-        // Check the result:
-        println("Encryption, decrypted text OK")
+            // Decrypt
+            val dataToDecrypt = hexStringToByteArray(classEncryptedData.encryptedDataHexString)
+            val decryptedData = cipher.doFinal(dataToDecrypt)
+            decryptedDataString = String(decryptedData)
+
+            // Check the result:
+            println("Encryption, decrypted text OK")
+        }
+        catch (e: Exception) {
+            when (e) {
+                is KeyStoreException,
+                is NoSuchAlgorithmException,
+                is InvalidKeyException,
+                is UnrecoverableKeyException,
+                is NoSuchProviderException,
+                is IOException -> {
+                    log.error(LTag.CORE, "$module: keyStoreDecrypt, msg: ${e.message}, $e")
+                }
+            }
+        }
         return decryptedDataString
     }
 

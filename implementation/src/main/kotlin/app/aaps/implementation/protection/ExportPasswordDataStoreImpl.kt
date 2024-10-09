@@ -24,6 +24,9 @@ import javax.inject.Inject
 const val datastoreName : String = "app.aaps.plugins.configuration.maintenance.ImportExport.datastore"
 const val passwordPreferenceName = "$datastoreName.password_value"
 
+// KeyStore alias name to use for encrypting
+private const val keyStoreAlias = "doTestKeyAlias01"
+
 @Reusable
 class ExportPasswordDataStoreImpl @Inject constructor(
     private var log: AAPSLogger,
@@ -149,7 +152,9 @@ class ExportPasswordDataStoreImpl @Inject constructor(
             }[preferencesKeyPassword].toString()
         }
 
-        // Update & return password string
+        // Clear empty password
+        secureEncrypt.encrypt("", keyStoreAlias)
+        // Clear password stored
         return updatePrefString(passwordPreferenceName)
     }
 
@@ -159,7 +164,7 @@ class ExportPasswordDataStoreImpl @Inject constructor(
      */
     private fun storePassword(context: Context, password: String): String {
 
-        // Write setting to android datastore and return password
+        // Write encrypted password key and timestamp to the local phone's android datastore and return password
         fun updatePrefString(name: String, str: String)  = runBlocking {
             val preferencesKeyPassword = stringPreferencesKey("$name.key")
             val preferencesKeyTimestamp = stringPreferencesKey("$name.ts")
@@ -172,7 +177,7 @@ class ExportPasswordDataStoreImpl @Inject constructor(
         }
 
         // Update & return password string
-        return updatePrefString(passwordPreferenceName, secureEncrypt.encrypt(password))
+        return updatePrefString(passwordPreferenceName, secureEncrypt.encrypt(password, keyStoreAlias))
     }
 
     /***
@@ -181,7 +186,7 @@ class ExportPasswordDataStoreImpl @Inject constructor(
     ***/
     private fun retrievePassword(context: Context): ClassPasswordData {
 
-        // Read string value from phone's local datastore using key name
+        // Read encrypted password key and timestamp from the local phone's android datastore and return password
         var passwordStr = ""
         var timestampStr = ""
 
@@ -219,16 +224,5 @@ class ExportPasswordDataStoreImpl @Inject constructor(
         // Store/update password and return
         return classPasswordData
     }
-
-    // /***
-    //  * TODO: Preparing for encryption/decryption (needs additional implementation)
-    //  */
-    // private fun encrypt(str: String): String {
-    //     return str
-    // }
-    //
-    // private fun decrypt(str: String): String {
-    //     return str
-    // }
 
 }

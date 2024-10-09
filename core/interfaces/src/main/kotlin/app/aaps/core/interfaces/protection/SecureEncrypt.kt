@@ -9,10 +9,10 @@ interface SecureEncrypt {
      * Dummy function
      * Returns true when Export password store is enabled.
      */
-    fun dummy(context: Context) : Boolean
+    fun doEncryptionTest(context: Context) : Boolean
 
-    fun encrypt(str: String): String
+    fun encrypt(plaintextSecret: String, keystoreAlias: String): String
 
-    fun decrypt(str: String): String
+    fun decrypt(encryptedSecret: String): String
 
 }

@@ -19,28 +19,24 @@ import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
+import javax.inject.Singleton
 
-// Internal constant stings?
-private const val module = "ENCRYPT"
-private const val hexStringSeparator = ":"
-
-@Reusable
+//@Reusable
+@Singleton
 class SecureEncryptImpl @Inject constructor(
     private var log: AAPSLogger,
     ) : SecureEncrypt {
 
-    // TODO: Implementation
-    override fun doEncryptionTest(context: Context) : Boolean {
-        //doTest() // TODO: testing only
-        log.debug(LTag.CORE, "$module: Testing")
-        return false
-    }
+    // Internal "constant" stings
+    private val module = "ENCRYPT"
+    private val hexStringSeparator = ":"
 
     // TODO: additional implementation and error/exception handling
 
-
     /***
-     * Encrypt plaintext string
+     * Encrypt plaintext secret
+     * - plaintextSecret: Plain text string to be encrypted
+     * - keystoreAlias: KeyStore alias name for encryption/decryption
      * Returns: secret
      */
     override fun encrypt(plaintextSecret: String, keystoreAlias: String): String {
@@ -57,6 +53,11 @@ class SecureEncryptImpl @Inject constructor(
         return secret
     }
 
+    /***
+     * Decrypt plaintext string
+     * - encryptedSecret: encrypted text string
+     * Returns: decrypted text string
+     */
     override fun decrypt(encryptedSecret: String): String {
         // doTest() // Do debug/tests....
 
@@ -248,7 +249,7 @@ class SecureEncryptImpl @Inject constructor(
         val decryptedDataString=String(decryptedData)
 
         // Check the result:
-        println("Encryption, decrypted text: $decryptedDataString")
+        println("Encryption, decrypted text OK")
         return decryptedDataString
     }
 

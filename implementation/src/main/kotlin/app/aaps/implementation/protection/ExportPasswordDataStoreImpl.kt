@@ -19,15 +19,10 @@ import dagger.Reusable
 import kotlinx.coroutines.runBlocking
 import java.io.File
 import javax.inject.Inject
+import javax.inject.Singleton
 
-// Internal constant stings
-const val datastoreName : String = "app.aaps.plugins.configuration.maintenance.ImportExport.datastore"
-const val passwordPreferenceName = "$datastoreName.password_value"
-
-// KeyStore alias name to use for encrypting
-private const val keyStoreAlias = "doTestKeyAlias01"
-
-@Reusable
+//@Reusable
+@Singleton
 class ExportPasswordDataStoreImpl @Inject constructor(
     private var log: AAPSLogger,
     private val sp: SP
@@ -39,6 +34,16 @@ class ExportPasswordDataStoreImpl @Inject constructor(
     // TODO: Remove for release (Debug only!)
     @Inject lateinit var fileListProvider: FileListProvider
 
+    // Internal constant stings
+    private val module = "ExportPasswordDataStore"
+
+
+    // KeyStore alias name to use for encrypting
+    private val keyStoreAlias = "UnattendedExportAlias01"
+
+    // Use local phones datastore to keep password/expiry state
+    private val datastoreName : String = "app.aaps.plugins.configuration.maintenance.ImportExport.datastore"
+    private val passwordPreferenceName = "$datastoreName.password_value"
     private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(
         name = datastoreName
     )
@@ -59,12 +64,16 @@ class ExportPasswordDataStoreImpl @Inject constructor(
     )
 
     /***
-     * Check Export password functionality
+     * Check if ExportPasswordDataStore is enabled
      * Returns true when Export password store is enabled.
      */
     override fun exportPasswordStoreEnabled() : Boolean {
-        // TODO: Remove for release (Debug only!)
+        // TODO: To be removed for final release (Debug only!)
+        // START
         val debug = File(fileListProvider.ensureExtraDirExists(), "DebugUnattendedExport").exists()
+        if (debug)
+            log.warn(LTag.CORE, "$module: ExportPasswordDataStore running DEBUG mode!")
+        // END
 
         // Is password storing enabled?
         exportPasswordStoreIsEnabled  = sp.getBoolean(BooleanKey.MaintenanceEnableExportSettingsAutomation.key, false)
@@ -72,17 +81,17 @@ class ExportPasswordDataStoreImpl @Inject constructor(
         if (exportPasswordStoreIsEnabled) if (!debug) {
             // Password validity window (default should be 5 weeks, minimum 1 week)
             // passwordValidityWindowSeconds = sp.getLong(IntKey.AutoExportPasswordExpiryDays.key, 35) * 24 * 3600 * 1000
-            passwordValidityWindow = 35 * 24 * 3600 * 1000L   // 5 weeks (including grace period)
-            passwordExpiryGracePeriod     =  7 * 24 * 3600 * 1000L   // 1 week
+            passwordValidityWindow = 35 * 24 * 3600 * 1000L         // 5 weeks (including grace period)
+            passwordExpiryGracePeriod     =  7 * 24 * 3600 * 1000L  // 1 week
         } else {
             /*** Debug mode ***/
-            passwordValidityWindow = 20 * 60 * 1000L              // Valid for 20 min
-            passwordExpiryGracePeriod = passwordValidityWindow/2  // Grace period 10 min
+            passwordValidityWindow = 20 * 60 * 1000L                // Valid for 20 min
+            passwordExpiryGracePeriod = passwordValidityWindow/2    // Grace period 10 min
             // passwordValidityWindowSeconds = 2 * 24 * 3600 * 1000L           // 2 Days (including grace periodee)
             // passwordExpiryGracePeriod     = passwordValidityWindowSeconds/2 // // Grace period 1 days
         }
 
-        log.debug(LTag.CORE, "ExportPassword Store Supported: $exportPasswordStoreIsEnabled, expiry msecs=$passwordValidityWindow")
+        log.info(LTag.CORE, "$module: ExportPasswordDataStore is enabled: $exportPasswordStoreIsEnabled, expiry msecs=$passwordValidityWindow")
         return exportPasswordStoreIsEnabled
     }
 
@@ -93,7 +102,7 @@ class ExportPasswordDataStoreImpl @Inject constructor(
         // TODO: For now always clear - also when general functionality is disabled?
         // if (!exportPasswordStoreEnabled()) return ""
 
-        log.debug(LTag.CORE, "clearPasswordDataStore")
+        log.debug(LTag.CORE, "$module: clearPasswordDataStore")
         // Store & update to empty password and return
         return this.clearPassword(context)
     }
@@ -103,7 +112,7 @@ class ExportPasswordDataStoreImpl @Inject constructor(
      */
     override fun putPasswordToDataStore(context: Context, password: String): String {
         if (!exportPasswordStoreEnabled()) return ""
-        log.debug(LTag.CORE, "putPasswordToDataStore")
+        log.debug(LTag.CORE, "$module: putPasswordToDataStore")
         return this.storePassword(context, password)
     }
 
@@ -116,7 +125,7 @@ class ExportPasswordDataStoreImpl @Inject constructor(
 
         val passwordData = this.retrievePassword(context)
         if (passwordData.password.isNotEmpty()) {  // And not expired
-            log.debug(LTag.CORE, "getPasswordFromDataStore")
+            log.debug(LTag.CORE, "$module: getPasswordFromDataStore")
             // return Triple(true, passwordData.password, passwordData.isAboutToExpire)
             return Triple(passwordData.password, passwordData.isExpired, passwordData.isAboutToExpire)
         }

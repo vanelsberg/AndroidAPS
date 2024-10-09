@@ -1,14 +1,12 @@
 package app.aaps.implementation.protection
 
+// Core
 import app.aaps.core.interfaces.logging.AAPSLogger
 import app.aaps.core.interfaces.logging.LTag
 import app.aaps.core.interfaces.protection.SecureEncrypt
 import javax.inject.Inject
 
-/***
- * Encrypting secrets using Android KeyStore?
- */
-
+// Android KeyStore
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import app.aaps.core.utils.hexStringToByteArray
@@ -58,7 +56,7 @@ class SecureEncryptImpl @Inject constructor(
             // Encrypt original data string
             val classEncryptedData = keyStoreEncrypt(keystoreAlias, plaintextSecret)
             val secret = getDataStringFromClassEncryptedData(classEncryptedData)
-            log.debug(LTag.CORE, "$module: encrypt() stored encryption secret.")
+            log.info(LTag.CORE, "$module: encrypt() stored encryption secret.")
             return secret
         }
         else {
@@ -79,7 +77,7 @@ class SecureEncryptImpl @Inject constructor(
             val classEncryptedData = putDataStringToClassEncryptedData(encryptedSecret)
             // Decrypt string
             val decryptedSecret = keyStoreDecrypt(classEncryptedData)
-            log.debug(LTag.CORE, "$module: decrypt() secret decrypted.")
+            log.info(LTag.CORE, "$module: decrypt() secret decrypted.")
             return decryptedSecret
         }
         else

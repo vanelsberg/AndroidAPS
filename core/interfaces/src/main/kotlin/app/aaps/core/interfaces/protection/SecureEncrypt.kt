@@ -1,6 +1,6 @@
 package app.aaps.core.interfaces.protection
 
-import android.content.Context
+// import android.content.Context
 
 interface SecureEncrypt {
 

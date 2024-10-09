@@ -4,7 +4,6 @@ import android.content.Context
 import app.aaps.core.interfaces.logging.AAPSLogger
 import app.aaps.core.interfaces.logging.LTag
 import app.aaps.core.interfaces.protection.SecureEncrypt
-import app.aaps.core.interfaces.sharedPreferences.SP
 import dagger.Reusable
 import javax.inject.Inject
 
@@ -28,7 +27,6 @@ private const val hexStringSeparator = ":"
 @Reusable
 class SecureEncryptImpl @Inject constructor(
     private var log: AAPSLogger,
-    private val sp: SP
     ) : SecureEncrypt {
 
     // TODO: Implementation
@@ -47,7 +45,7 @@ class SecureEncryptImpl @Inject constructor(
      */
     override fun encrypt(plaintextSecret: String, keystoreAlias: String): String {
         var secret = ""
-        if (!plaintextSecret.isNullOrEmpty()) {
+        if (!plaintextSecret.isEmpty()) {
             // Encrypt original data string
             val classEncryptedData = keyStoreEncrypt(keystoreAlias, plaintextSecret)
             secret = getDataStringFromClassEncryptedData(classEncryptedData)
@@ -64,7 +62,7 @@ class SecureEncryptImpl @Inject constructor(
 
         // Retrieve encryption secret from preferences
         var decryptedSecret = ""
-        if (!encryptedSecret.isNullOrEmpty()) {
+        if (!encryptedSecret.isEmpty()) {
             // Prepare for decryption
             val classEncryptedData = putDataStringToClassEncryptedData(encryptedSecret)
             // Decrypt string

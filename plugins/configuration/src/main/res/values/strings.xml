@@ -107,6 +107,7 @@
     <string name="different_password_used">This file was exported and encrypted with different master password. Provide old master password to decrypt file.</string>
     <string name="master_password_will_be_replaced">As a result of successful import current master password WILL BE REPLACED with that old master password!</string>
     <string name="exported">Preferences exported</string>
+    <string name="exported_failed">Preferences export failed!</string>
     <string name="filenotfound">File not found</string>
     <string name="goto_main_try_again">Please go back to main screen and try again.</string>
     <string name="restartingapp">Exiting application to apply settings.</string>

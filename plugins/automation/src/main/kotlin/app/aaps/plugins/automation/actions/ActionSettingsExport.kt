@@ -42,10 +42,6 @@ class ActionSettingsExport(injector: HasAndroidInjector) : Action(injector) {
 
     var text = InputString()
 
-    // constructor(injector: HasAndroidInjector, text: String) : this(injector) {
-    //     this.text = InputString(text)
-    // }
-
     override fun friendlyName(): Int = app.aaps.core.ui.R.string.exportsettings
     override fun shortDescription(): String = rh.gs(R.string.exportsettings_message, text.value)
     @DrawableRes override fun icon(): Int = app.aaps.core.objects.R.drawable.ic_export_settings_24dp
@@ -59,7 +55,7 @@ class ActionSettingsExport(injector: HasAndroidInjector) : Action(injector) {
             // Send user notification when done
             val notification: Notification
 
-            // Returns Triple:
+            // Get the (encrypted) password and status from the DataStore
             val (password, isExpired, isAboutToExpire) = exportPasswordDataStore.getPasswordFromDataStore(context)
 
             if (password.isNotEmpty() && !isExpired) { // Password is not empty and not isExpired

@@ -9,6 +9,7 @@ import javax.inject.Inject
 // Android KeyStore
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
+import app.aaps.core.objects.crypto.CryptoUtil
 import app.aaps.core.utils.hexStringToByteArray
 import java.io.IOException
 import java.security.InvalidKeyException
@@ -36,11 +37,14 @@ import javax.inject.Singleton
 @Singleton
 class SecureEncryptImpl @Inject constructor(
     private var log: AAPSLogger,
+    private var cryptoUtil: CryptoUtil
     ) : SecureEncrypt {
 
-    // Internal "constant" stings
-    private val module = "ENCRYPT"
-    private val hexStringSeparator = ":"
+    companion object {
+        // Internal "constant" stings
+        const val MODULE = "ENCRYPT"
+        const val HEX_STRING_SEPARATOR = ":"
+    }
 
     // TODO: additional implementation and error/exception handling
 
@@ -55,12 +59,12 @@ class SecureEncryptImpl @Inject constructor(
         if (!plaintextSecret.isEmpty()) {
             // Encrypt original data string
             val classEncryptedData = keyStoreEncrypt(keystoreAlias, plaintextSecret)
-            val secret = getDataStringFromClassEncryptedData(classEncryptedData)
-            log.info(LTag.CORE, "$module: encrypt() stored encryption secret.")
+            val secret = classEncryptedDataToString(classEncryptedData)
+            log.info(LTag.CORE, "$MODULE: encrypt() stored encryption secret.")
             return secret
         }
         else {
-            log.debug(LTag.CORE, "$module: encrypt() not encrypting empty secret.")
+            log.debug(LTag.CORE, "$MODULE: encrypt() not encrypting empty secret.")
         }
         return ""
     }
@@ -74,18 +78,30 @@ class SecureEncryptImpl @Inject constructor(
         // Retrieve encryption secret from preferences
         if (!encryptedSecret.isEmpty()) {
             // Prepare for decryption
-            val classEncryptedData = putDataStringToClassEncryptedData(encryptedSecret)
+            val classEncryptedData = stringToClassEncryptedData(encryptedSecret)
             // Decrypt string
             val decryptedSecret = keyStoreDecrypt(classEncryptedData)
-            log.info(LTag.CORE, "$module: decrypt() secret decrypted.")
+            log.info(LTag.CORE, "$MODULE: decrypt() secret decrypted.")
             return decryptedSecret
         }
         else
-            log.debug(LTag.CORE, "$module: decrypt() empty not decrypting empty secret.")
+            log.debug(LTag.CORE, "$MODULE: decrypt() empty not decrypting empty secret.")
 
         return ""
     }
 
+    /**
+     * Check if header part of the DataString is valid hash
+     */
+    override fun isValidDataString(data: String?): Boolean {
+        with(data) {
+            if (!isNullOrEmpty() && split(HEX_STRING_SEPARATOR).size > 1) {
+                val dataContent = substringAfter(HEX_STRING_SEPARATOR)
+                return (substringBefore(HEX_STRING_SEPARATOR) == cryptoUtil.sha256(dataContent))
+            }
+        }
+        return false
+    }
 
     /*************************************************************************
      * Private functions
@@ -165,6 +181,7 @@ class SecureEncryptImpl @Inject constructor(
      * - encryptedDataHexString: Hex formatted, encrypted data string
      */
     data class ClassEncryptedData (
+        var isValid: Boolean,
         var keyStoreAlias: String,
         var ivHexString: String,
         var encryptedDataHexString: String
@@ -173,16 +190,23 @@ class SecureEncryptImpl @Inject constructor(
     /**
      * Get classEncryptedData into one single String formatted "<keyStoreAlis><separator><ivHexString><separator><encryptedDataHexString>" for easy storing.
      * - ClassEncryptedData object containing encryption data
-     * Returns: plaintext String formatted "<ivHexString><separator><encryptedDataHexString>"
+     * Returns: plaintext String formatted "<hash><separator><keyStoreAlias><separator><ivHexString><separator><encryptedDataHexString>"
      */
-    private fun getDataStringFromClassEncryptedData(classEncryptedData: ClassEncryptedData): String
+    private fun classEncryptedDataToString(classEncryptedData: ClassEncryptedData): String
     {
-        return buildString {
+        // Construct data string separated by separator characters
+        val data = buildString {
             append(classEncryptedData.keyStoreAlias)
-            append(hexStringSeparator)
+            append(HEX_STRING_SEPARATOR)
             append(classEncryptedData.ivHexString)
-            append(hexStringSeparator)
+            append(HEX_STRING_SEPARATOR)
             append(classEncryptedData.encryptedDataHexString)
+        }
+        // Return data string with header hash value
+        return buildString {
+            append(cryptoUtil.sha256(data)) // Hash to be able to validate
+            append(HEX_STRING_SEPARATOR)      // Data
+            append(data)
         }
     }
 
@@ -190,13 +214,17 @@ class SecureEncryptImpl @Inject constructor(
      * Input plaintext string formatted "<ivHexString><separator><encryptedDataHexString>"
      * Returns initialized ClassEncryptedData object
      */
-    private fun putDataStringToClassEncryptedData(dataString: String): ClassEncryptedData
+    private fun stringToClassEncryptedData(dataString: String): ClassEncryptedData
     {
-        val data = dataString.split(hexStringSeparator)
-        return if (data.size == 3)
-            ClassEncryptedData(keyStoreAlias = data[0], ivHexString = data[1], encryptedDataHexString = data[2])
+        if (isValidDataString(dataString)) {
+            val data = dataString.split(HEX_STRING_SEPARATOR)
+            return if (data.size == 4)
+                return ClassEncryptedData(isValid = true, keyStoreAlias = data[1], ivHexString = data[2], encryptedDataHexString = data[3])
+            else
+                return ClassEncryptedData(isValid = false, keyStoreAlias = "", ivHexString = "", encryptedDataHexString = "")
+        }
         else
-            ClassEncryptedData (keyStoreAlias = "", ivHexString = "", encryptedDataHexString = "")
+            return ClassEncryptedData(isValid = false, keyStoreAlias = "", ivHexString = "", encryptedDataHexString = "")
     }
 
     /***
@@ -206,7 +234,7 @@ class SecureEncryptImpl @Inject constructor(
     @OptIn(ExperimentalStdlibApi::class)
     private fun keyStoreEncrypt(keyAlias: String, originalDataString: String): ClassEncryptedData {
         // Initialize data class
-        var classEncryptedData = ClassEncryptedData(keyStoreAlias = keyAlias, ivHexString = "", encryptedDataHexString = "")
+        var classEncryptedData = ClassEncryptedData(isValid = false, keyStoreAlias = keyAlias, ivHexString = "", encryptedDataHexString = "")
 
         try {
             // Get secret key
@@ -222,13 +250,15 @@ class SecureEncryptImpl @Inject constructor(
             val encryptedData = cipher.doFinal(originalData)
 
             classEncryptedData = ClassEncryptedData (
+                isValid = true,
                 keyStoreAlias = keyAlias,
                 ivHexString = ivHex,
                 encryptedDataHexString = encryptedData.toHexString()
             )
+            println("Encryption, isValid      : $classEncryptedData.isValid")
             println("Encryption, keyStoreAlias: $classEncryptedData.keyStoreAlias")
-            println("Encryption, iv(hex)  : $classEncryptedData.ivHex")
-            println("Encryption, Text(hex): $classEncryptedData.encryptedDataHexString")
+            println("Encryption, iv(hex)      : $classEncryptedData.ivHex")
+            println("Encryption, Text(hex)    : $classEncryptedData.encryptedDataHexString")
         }
         catch (e: Exception) {
             when (e) {
@@ -238,7 +268,7 @@ class SecureEncryptImpl @Inject constructor(
                 is UnrecoverableKeyException,
                 is NoSuchProviderException,
                 is IOException -> {
-                    log.error(LTag.CORE, "$module: keyStoreEncrypt, msg=${e.message}, $e")
+                    log.error(LTag.CORE, "$MODULE: keyStoreEncrypt, msg=${e.message}, $e")
                 }
             }
         }
@@ -252,10 +282,11 @@ class SecureEncryptImpl @Inject constructor(
      * Returns: Decrypted plaintext string or empty string when error or no encrypted data
      */
     private fun keyStoreDecrypt(classEncryptedData: ClassEncryptedData): String {
-        // TODO: Handle exceptions!
-        if (classEncryptedData.encryptedDataHexString.isEmpty()) {
-            // There is no encrypted data? return empty string
-            return ""
+        with (classEncryptedData) {
+            if (!isValid || encryptedDataHexString.isEmpty()) {
+                // There is no valid or encrypted data: return empty string
+                return ""
+            }
         }
 
         // Initialise
@@ -287,7 +318,7 @@ class SecureEncryptImpl @Inject constructor(
                 is UnrecoverableKeyException,
                 is NoSuchProviderException,
                 is IOException -> {
-                    log.error(LTag.CORE, "$module: keyStoreDecrypt, msg: ${e.message}, $e")
+                    log.error(LTag.CORE, "$MODULE: keyStoreDecrypt, msg: ${e.message}, $e")
                 }
             }
         }

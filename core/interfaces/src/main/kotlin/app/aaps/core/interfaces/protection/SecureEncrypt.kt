@@ -17,4 +17,9 @@ interface SecureEncrypt {
      */
     fun decrypt(encryptedSecret: String): String
 
+    /**
+     * Check if header part of the data string is valid hash
+     */
+    fun isValidDataString(data: String?): Boolean
+
 }

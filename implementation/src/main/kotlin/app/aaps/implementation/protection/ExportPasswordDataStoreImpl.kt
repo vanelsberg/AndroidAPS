@@ -20,6 +20,23 @@ import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * Class ExportPasswordDataStore (interface + implementation)
+ *
+ * This class is used to keep/store password state in the phones DataStore, that is:
+ * Password (encryption key) and creation timestamp are stored, "expiry" state and "about to expire"
+ * are calculated based on timestamp and the validity window defined.
+ *
+ * Note:
+ * - Password secret and state are stored on the phone's "Android DataStore", not in AAPS preferences.
+ * - Password encryption and decryption uses encryption keys securely stored in the phone's "Android KeyStore".
+ * - The actual password is not stored, only a secret "key" containing encrypted data and parameters.
+ * - The secret "key" is used for secure access to the password in the "Android KeyStore"
+ *
+ * Dependancy: Class SecureEncrypt
+ *
+ */
+
 //@Reusable
 @Singleton
 class ExportPasswordDataStoreImpl @Inject constructor(
@@ -38,25 +55,25 @@ class ExportPasswordDataStoreImpl @Inject constructor(
         // Internal constant stings
         const val MODULE = "ExportPasswordDataStore"
         // KeyStore alias name to use for encrypting
-        const val KEYSTORE_ALIAS = "UnattendedExportAlias01"
-        // Use local phones data store to keep password/expiry state
+        const val KEYSTORE_ALIAS = "UnattendedExportAlias02"            // TODO: Define for final PR/release
+
+        // Android DataStore: used for keeping password state on local phone storage
         const val DATASTORE_NAME: String = "app.aaps.plugins.configuration.maintenance.ImportExport.datastore"
         const val PASSWORD_PREFERENCE_NAME = "$DATASTORE_NAME.password_value"
 
-        // On enabling & password expiry
+        // On enabling & password expiry (fixed defaults)
         private var exportPasswordStoreIsEnabled    = false                   // Set from prefs, disabled by default
         private var passwordValidityWindow: Long    = 35 * 24 * 3600 * 1000L  // 5 weeks (including grace period)
         private var passwordExpiryGracePeriod: Long =  7 * 24 * 3600 * 1000L  // 1 week
     }
 
+    // Declare DataStore
     private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(
         name = DATASTORE_NAME
     )
 
-
-
     /***
-     * Data class holding password attributes
+     * Data class holding password status
      */
     data class ClassPasswordData(
         var password: String,
@@ -78,19 +95,24 @@ class ExportPasswordDataStoreImpl @Inject constructor(
         if (!exportPasswordStoreIsEnabled) return false // Easy, done!
 
         // Use fixed defaults for password validity window, optional overrule defaults from prefs:
-        // passwordValidityWindowSeconds = sp.getLong(IntKey.AutoExportPasswordExpiryDays.key, 35) * 24 * 3600 * 1000
+        // passwordValidityWindow = sp.getLong(IntKey.AutoExportPasswordExpiryDays.key, 35) * 24 * 3600 * 1000
 
         if (config.isEngineeringMode() && config.isDev()) {
-            // TODO: To be removed for final release?
+            // TODO: To be removed for final PR/release?
             // Enable debug mode when file 'DebugUnattendedExport' exists
             val debug = File(fileListProvider.ensureExtraDirExists(), "DebugUnattendedExport").exists()
+            val debugDev = File(fileListProvider.ensureExtraDirExists(), "DebugUnattendedExport_dev").exists()
             if (debug) {
                 log.warn(LTag.CORE, "$MODULE: ExportPasswordDataStore running DEBUG mode!")
                 /*** Debug/testing mode ***/
                 passwordValidityWindow = 20 * 60 * 1000L                // Valid for 20 min
                 passwordExpiryGracePeriod = passwordValidityWindow/2    // Grace period 10 min
-                // passwordValidityWindowSeconds = 2 * 24 * 3600 * 1000L           // 2 Days (including grace periodee)
-                // passwordExpiryGracePeriod     = passwordValidityWindowSeconds/2 // // Grace period 1 days
+            }
+            else if (debugDev) {
+                log.warn(LTag.CORE, "$MODULE: ExportPasswordDataStore running DEBUG(DEV) mode!")
+                /*** Debug/testing mode ***/
+                passwordValidityWindow = 2 * 24 * 3600 * 1000L           // 2 Days (including grace periodee)
+                passwordExpiryGracePeriod     = passwordValidityWindow/2 // // Grace period 1 days
             }
         }
         // END
@@ -100,7 +122,7 @@ class ExportPasswordDataStoreImpl @Inject constructor(
     }
 
     /***
-     * Clear password currently stored to "empty"
+     * Clear password currently stored in DataStore to "empty"
      */
     override fun clearPasswordDataStore(context: Context): String {
         if (!exportPasswordStoreEnabled()) return "" // Do nothing, return empty
@@ -111,7 +133,7 @@ class ExportPasswordDataStoreImpl @Inject constructor(
     }
 
     /***
-     * Put password to local phone's datastore
+     * Store password in local phone's DataStore
      * Return: password
      */
     override fun putPasswordToDataStore(context: Context, password: String): String {
@@ -121,17 +143,19 @@ class ExportPasswordDataStoreImpl @Inject constructor(
     }
 
     /***
-     * Get password from local phone's data store
+     * Get password from local phone's DataStore
      * Return Triple (ok, password string, isExpired, isAboutToExpire)
      */
     override fun getPasswordFromDataStore(context: Context): Triple<String, Boolean, Boolean> {
         if (!exportPasswordStoreEnabled()) return Triple ("", true, true)
 
         val passwordData = this.retrievePassword(context)
-        if (passwordData.password.isNotEmpty()) {  // And not expired
-            log.debug(LTag.CORE, "$MODULE: getPasswordFromDataStore")
-            // return Triple(true, passwordData.password, passwordData.isAboutToExpire)
-            return Triple(passwordData.password, passwordData.isExpired, passwordData.isAboutToExpire)
+        with(passwordData) {
+            if (password.isNotEmpty()) {  // And not expired
+                log.debug(LTag.CORE, "$MODULE: getPasswordFromDataStore")
+                // return Triple(true, passwordData.password, passwordData.isAboutToExpire)
+                return Triple(password, isExpired, isAboutToExpire)
+            }
         }
         return Triple ("", true, true)
     }
@@ -165,12 +189,7 @@ class ExportPasswordDataStoreImpl @Inject constructor(
             }[preferencesKeyPassword].toString()
         }
 
-        /** TODO: Remove - no sense in encrypting empty string (does not clear anything)
-        // Clear empty password
-        secureEncrypt.encrypt("", keyStoreAlias)
-        */
-
-        // Clear password stored
+        // Clear password stored in DataStore
         return updatePrefString(PASSWORD_PREFERENCE_NAME)
     }
 
@@ -192,7 +211,7 @@ class ExportPasswordDataStoreImpl @Inject constructor(
             }[preferencesKeyPassword].toString()
         }
 
-        // Update & return password string
+        // Update DataStore & return password string
         return updatePrefString(PASSWORD_PREFERENCE_NAME, secureEncrypt.encrypt(password, KEYSTORE_ALIAS))
     }
 
@@ -224,19 +243,17 @@ class ExportPasswordDataStoreImpl @Inject constructor(
         )
 
         // Get the password value stored
-        if (classPasswordData.password.isEmpty())
-            return classPasswordData
+        with(classPasswordData) {
+            if (password.isEmpty()) return classPasswordData
 
-        // Password is defined: Check for password expiry:
-        val (expired, expires) = isInValidityWindow(classPasswordData.timestamp, passwordValidityWindow, passwordExpiryGracePeriod)
-        classPasswordData.isExpired = expired
-        classPasswordData.isAboutToExpire = expires
+            // Password is defined: Check for password expiry:
+            val (expired, expires) = isInValidityWindow(timestamp, passwordValidityWindow, passwordExpiryGracePeriod)
+            isExpired = expired
+            isAboutToExpire = expires
 
-        if (classPasswordData.isExpired)
-            // Password validity ended - need to renew:
-            // Clear/update password in data store
-            classPasswordData.password = this.clearPasswordDataStore(context)
-
+            // When expired, need to renew: clear/update password in data store
+            if (isExpired) password = clearPasswordDataStore(context)
+        }
         // Store/update password and return
         return classPasswordData
     }

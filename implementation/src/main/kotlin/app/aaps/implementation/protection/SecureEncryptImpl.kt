@@ -112,7 +112,7 @@ class SecureEncryptImpl @Inject constructor(
      * - forceNew: Force generate new key
      * Returns: New or existing KeyStore key for alias
      *
-     * Note getKeyFromKeyStore can throw the following exceptions:
+     * Note getKeyFromKeyStore runtime can throw the following exceptions:
      *  is KeyStoreException,
      *  is NoSuchAlgorithmException,
      *  is InvalidKeyException
@@ -191,7 +191,7 @@ class SecureEncryptImpl @Inject constructor(
      */
     private fun classEncryptedDataToString(classEncryptedData: ClassEncryptedData): String
     {
-        // Construct data string separated by separator characters
+        // Construct data string
         val data = buildString {
             append(classEncryptedData.keyStoreAlias)
             append(HEX_STRING_SEPARATOR)
@@ -202,8 +202,8 @@ class SecureEncryptImpl @Inject constructor(
         // Return data string with header hash value
         return buildString {
             append(cryptoUtil.sha256(data)) // Hash to be able to validate
-            append(HEX_STRING_SEPARATOR)      // Data
-            append(data)
+            append(HEX_STRING_SEPARATOR)    // <separator>
+            append(data)                    // Data...
         }
     }
 
@@ -323,9 +323,7 @@ class SecureEncryptImpl @Inject constructor(
     }
 
     /***
-    * TESTING...
-
-    // Test/Usage example
+    * TESTING: Test/Debyg example code using Android KeyStore
     private fun doTest(): Boolean {
         val originalDataString = "My sensitive data"
 

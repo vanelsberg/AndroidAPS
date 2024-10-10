@@ -57,7 +57,7 @@ class SecureEncryptImpl @Inject constructor(
     override fun encrypt(plaintextSecret: String, keystoreAlias: String): String {
         //
         if (!plaintextSecret.isEmpty()) {
-            // Encrypt original data string
+            // Encrypt plaintextSecret string
             val classEncryptedData = keyStoreEncrypt(keystoreAlias, plaintextSecret)
             val secret = classEncryptedDataToString(classEncryptedData)
             log.info(LTag.CORE, "$MODULE: encrypt() stored encryption secret.")
@@ -75,7 +75,6 @@ class SecureEncryptImpl @Inject constructor(
      * Returns: decrypted text string
      */
     override fun decrypt(encryptedSecret: String): String {
-        // Retrieve encryption secret from preferences
         if (!encryptedSecret.isEmpty()) {
             // Prepare for decryption
             val classEncryptedData = stringToClassEncryptedData(encryptedSecret)
@@ -152,8 +151,6 @@ class SecureEncryptImpl @Inject constructor(
      * Returns: Existing KeyStore key for alias
      */
     private fun retrieveSecretKeyFromKeyStore(keyAlias: String): SecretKey {
-        // TODO: Handle exceptions
-
         val keyStore = KeyStore.getInstance("AndroidKeyStore")
         keyStore.load(null)
         val secretKeyEntry = keyStore.getEntry(keyAlias, null) as KeyStore.SecretKeyEntry
@@ -219,9 +216,9 @@ class SecureEncryptImpl @Inject constructor(
         if (isValidDataString(dataString)) {
             val data = dataString.split(HEX_STRING_SEPARATOR)
             return if (data.size == 4)
-                return ClassEncryptedData(isValid = true, keyStoreAlias = data[1], ivHexString = data[2], encryptedDataHexString = data[3])
+                ClassEncryptedData(isValid = true, keyStoreAlias = data[1], ivHexString = data[2], encryptedDataHexString = data[3])
             else
-                return ClassEncryptedData(isValid = false, keyStoreAlias = "", ivHexString = "", encryptedDataHexString = "")
+                ClassEncryptedData(isValid = false, keyStoreAlias = "", ivHexString = "", encryptedDataHexString = "")
         }
         else
             return ClassEncryptedData(isValid = false, keyStoreAlias = "", ivHexString = "", encryptedDataHexString = "")

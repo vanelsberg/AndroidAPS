@@ -205,11 +205,11 @@ class ImportExportPrefsImpl @Inject constructor(
         }
 
         // Get password from datastore
-        val storedPassword = exportPasswordDataStore.getPasswordFromDataStore(context)  //TODO: Make this returning data class ClassPasswordData!
-        if (storedPassword.first.isNotEmpty() && !(storedPassword.second || storedPassword.third)){
-            // We have a password (first) that is not (expired (second) or about to expire (third)
-            then(storedPassword.first)
-            return
+        val (password, isExpired, isAboutToExpire) = exportPasswordDataStore.getPasswordFromDataStore(context)
+        if (password.isNotEmpty() && !(isExpired || isAboutToExpire)) {
+            // We have an (encrypted) password in the phones DataStore that is not expired or about to expire (third)
+            then(password)
+            return // No need to ask.
         }
 
         // Make sure stored password is properly reset
@@ -265,20 +265,18 @@ class ImportExportPrefsImpl @Inject constructor(
         }
     }
 
-    override fun exportSharedPreferencesNonInteractive(context: Context, password: String): Boolean {
+    /**
+     * Save preferences to file
+     */
+    private fun savePreferences(newFile: File, password: String): Boolean {
         var resultOk = false // Assume result was not OK unless acknowledged
-
-        prefFileList.ensureExportDirExists()
-        val newFile = prefFileList.newExportFile()
 
         try {
             val entries: MutableMap<String, String> = mutableMapOf()
             for ((key, value) in sp.getAll()) {
                 entries[key] = value.toString()
             }
-
             val prefs = Prefs(entries, prepareMetadata(context))
-
             encryptedPrefsFormat.savePreferences(newFile, prefs, password)
             resultOk = true // Assuming export was executed successfully (or it would have thrown an exception)
 
@@ -291,50 +289,27 @@ class ImportExportPrefsImpl @Inject constructor(
         } catch (e: PrefIOError) {
             log.error(LTag.CORE, "File system exception: PrefIOError, export canceled", e)
         }
+        log.debug(LTag.CORE, "savePreferences: $resultOk")
         return resultOk
     }
 
-
     private fun exportSharedPreferences(activity: FragmentActivity) {
-
         prefFileList.ensureExportDirExists()
         val newFile = prefFileList.newExportFile()
 
         askToConfirmExport(activity, newFile) { password ->
-            try {
-                val entries: MutableMap<String, String> = mutableMapOf()
-                for ((key, value) in sp.getAll()) {
-                    entries[key] = value.toString()
-                }
-
-                val prefs = Prefs(entries, prepareMetadata(activity))
-
-                encryptedPrefsFormat.savePreferences(newFile, prefs, password)
-
+            if (savePreferences(newFile, password))
                 ToastUtils.okToast(activity, rh.gs(R.string.exported))
-            } catch (e: FileNotFoundException) {
-                ToastUtils.errorToast(activity, rh.gs(R.string.filenotfound) + " " + newFile)
-                log.error(LTag.CORE, "Unhandled exception", e)
-            } catch (e: IOException) {
-                ToastUtils.errorToast(activity, e.message)
-                log.error(LTag.CORE, "Unhandled exception", e)
-            } catch (e: PrefFileNotFoundError) {
-                ToastUtils.Long.errorToast(
-                    activity, rh.gs(R.string.preferences_export_canceled)
-                        + "\n\n" + rh.gs(R.string.filenotfound)
-                        + ": " + e.message
-                        + "\n\n" + rh.gs(R.string.need_storage_permission)
-                )
-                log.error(LTag.CORE, "File system exception", e)
-            } catch (e: PrefIOError) {
-                ToastUtils.Long.errorToast(
-                    activity, rh.gs(R.string.preferences_export_canceled)
-                        + "\n\n" + rh.gs(R.string.need_storage_permission)
-                        + ": " + e.message
-                )
-                log.error(LTag.CORE, "File system exception", e)
-            }
+            else
+                ToastUtils.okToast(activity, rh.gs(R.string.exported_failed))
         }
+    }
+
+    override fun exportSharedPreferencesNonInteractive(context: Context, password: String): Boolean {
+        prefFileList.ensureExportDirExists()
+        val newFile = prefFileList.newExportFile()
+
+        return savePreferences(newFile, password)
     }
 
     override fun importSharedPreferences(fragment: Fragment) {

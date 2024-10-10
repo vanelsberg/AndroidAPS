@@ -165,7 +165,7 @@ class ExportPasswordDataStoreImpl @Inject constructor(
             }[preferencesKeyPassword].toString()
         }
 
-        /** TODO: This makes no sense?
+        /** TODO: Remove - no sense in encrypting empty string (does not clear anything)
         // Clear empty password
         secureEncrypt.encrypt("", keyStoreAlias)
         */

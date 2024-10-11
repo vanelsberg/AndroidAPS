@@ -33,7 +33,6 @@ import javax.inject.Singleton
  * remaining non-exportable.
  */
 
-//@Reusable
 @Singleton
 class SecureEncryptImpl @Inject constructor(
     private var log: AAPSLogger,

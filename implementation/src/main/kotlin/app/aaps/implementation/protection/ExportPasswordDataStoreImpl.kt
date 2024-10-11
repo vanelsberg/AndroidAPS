@@ -37,7 +37,6 @@ import javax.inject.Singleton
  *
  */
 
-//@Reusable
 @Singleton
 class ExportPasswordDataStoreImpl @Inject constructor(
     private var log: AAPSLogger,

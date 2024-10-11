@@ -95,24 +95,25 @@ class ExportPasswordDataStoreImpl @Inject constructor(
         if (!exportPasswordStoreIsEnabled) return false // Easy, done!
 
         // Use fixed defaults for password validity window, optional overrule defaults from prefs:
-        // passwordValidityWindow = sp.getLong(IntKey.AutoExportPasswordExpiryDays.key, 35) * 24 * 3600 * 1000
+        // passwordValidityWindow = (sp.getLong(IntKey.AutoExportPasswordExpiryDays.key.....
 
+        // TODO: To be removed for final PR/release?
+        // START
         if (config.isEngineeringMode() && config.isDev()) {
-            // TODO: To be removed for final PR/release?
             // Enable debug mode when file 'DebugUnattendedExport' exists
             val debug = File(fileListProvider.ensureExtraDirExists(), "DebugUnattendedExport").exists()
-            val debugDev = File(fileListProvider.ensureExtraDirExists(), "DebugUnattendedExport_dev").exists()
-            if (debug) {
-                log.warn(LTag.CORE, "$MODULE: ExportPasswordDataStore running DEBUG mode!")
+            val debugDev = File(fileListProvider.ensureExtraDirExists(), "DebugUnattendedExportDev").exists()
+            if (debugDev) {
+                log.warn(LTag.CORE, "$MODULE: ExportPasswordDataStore running DEBUG(DEV) mode!")
                 /*** Debug/testing mode ***/
                 passwordValidityWindow = 20 * 60 * 1000L                // Valid for 20 min
                 passwordExpiryGracePeriod = passwordValidityWindow/2    // Grace period 10 min
             }
-            else if (debugDev) {
-                log.warn(LTag.CORE, "$MODULE: ExportPasswordDataStore running DEBUG(DEV) mode!")
-                /*** Debug/testing mode ***/
+            else if (debug) {
+                log.warn(LTag.CORE, "$MODULE: ExportPasswordDataStore running DEBUG mode!")
+                /*** Debug mode ***/
                 passwordValidityWindow = 2 * 24 * 3600 * 1000L           // 2 Days (including grace periodee)
-                passwordExpiryGracePeriod     = passwordValidityWindow/2 // // Grace period 1 days
+                passwordExpiryGracePeriod     = passwordValidityWindow/2 // Grace period 1 days
             }
         }
         // END

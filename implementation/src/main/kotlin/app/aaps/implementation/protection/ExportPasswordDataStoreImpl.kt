@@ -54,11 +54,11 @@ class ExportPasswordDataStoreImpl @Inject constructor(
         // Internal constant stings
         const val MODULE = "ExportPasswordDataStore"
         // KeyStore alias name to use for encrypting
-        const val KEYSTORE_ALIAS = "UnattendedExportAlias02"            // TODO: Define for final PR/release
+        const val KEYSTORE_ALIAS = "UnattendedExportAlias"
 
         // Android DataStore: used for keeping password state on local phone storage
         const val DATASTORE_NAME: String = "app.aaps.plugins.configuration.maintenance.ImportExport.datastore"
-        const val PASSWORD_PREFERENCE_NAME = "$DATASTORE_NAME.password_value"
+        const val PASSWORD_PREFERENCE_NAME = "$DATASTORE_NAME.unattended_export"
 
         // On enabling & password expiry (fixed defaults)
         private var exportPasswordStoreIsEnabled    = false                   // Set from prefs, disabled by default

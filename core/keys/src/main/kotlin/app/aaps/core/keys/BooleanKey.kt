@@ -62,7 +62,7 @@ enum class BooleanKey(
 
     MaintenanceEnableFabric("enable_fabric2", true, defaultedBySM = true, hideParentScreenIfHidden = true),
 
-    MaintenanceEnableExportSettingsAutomation("enable_unattended_export", true, defaultedBySM = true, hideParentScreenIfHidden = true),
+    MaintenanceEnableExportSettingsAutomation("enable_unattended_export", false, defaultedBySM = false),
 
     AutotuneAutoSwitchProfile("autotune_auto", false),
     AutotuneCategorizeUamAsBasal("categorize_uam_as_basal", false),

@@ -45,8 +45,6 @@ class SecureEncryptImpl @Inject constructor(
         const val HEX_STRING_SEPARATOR = ":"
     }
 
-    // TODO: additional implementation and error/exception handling
-
     /***
      * Encrypt plaintext secret
      * - plaintextSecret: Plain text string to be encrypted

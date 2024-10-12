@@ -538,6 +538,13 @@
     <!-- TwoMessagesDialog -->
     <string name="password_preferences_decrypt_prompt">You will be asked for master password, which is needed to decrypt imported preferences.</string>
 
+    <!-- <unattende_export> -->
+    <string name="export_ok">OK</string>
+    <string name="export_warning">Warning</string>
+    <string name="export_expired">Expired</string>
+    <string name="export_disabled">Disabled</string>
+    <string name="export_failed">OK</string>
+
     <!-- NumberPicker -->
     <string name="a11y_min_button_description">decrement %1$s by %2$s</string>
     <string name="a11y_plus_button_description">increment %1$s by %2$s</string>

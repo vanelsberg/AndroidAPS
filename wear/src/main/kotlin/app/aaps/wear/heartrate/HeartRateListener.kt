@@ -141,7 +141,10 @@ class HeartRateListener(
         private val actionHeartRatehistory: MutableList<EventData.ActionHeartRate> = ArrayList()
         private val averageHistory
             get() = sp.getInt(R.string.key_heart_rate_smoothing, 1)
-        private val maxAverage = 15
+
+        // Set maxAverage from settings, with a minimum of 30 minutes
+        // private val maxAverage = maxOf(averageHistory,30)
+        private val maxAverage = 60
 
         private var startMillis: Long = timestampMillis
         private var lastEventMillis: Long = timestampMillis
@@ -203,13 +206,16 @@ class HeartRateListener(
                 var avgNb = 0
                 var allDuration = 0L
                 actionHeartRatehistory.forEach { hr ->
-                    if (hr.timestamp >= timestamp - (averageHistory - 1) * 62000L) {    // If smoothing disabled, only last BPM is sent
+                    if (hr.timestamp >= timestamp - (averageHistory - 1) * 62000L) {
+                        // If smoothing disabled, only last BPM is sent
                         bpm += hr.beatsPerMinute
                         avgNb++
                         allDuration += hr.duration
                     }
                 }
-                return if (avgNb > averageHistory / 4 || allDuration.toMinute() > averageHistory.toDouble() / 2.0) {    // When average is enabled, send value only if average is done on a number of values that is above half the selected duration
+                return if (avgNb > averageHistory / 4 || allDuration.toMinute() > averageHistory.toDouble() / 2.0) {
+                    // When average is enabled, send value only if average is done on a number of values
+                    // that is above half the selected duration
                     EventData.ActionHeartRate(duration, timestamp, bpm / avgNb, device)
                 } else
                     null

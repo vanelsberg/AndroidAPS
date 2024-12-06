@@ -56,6 +56,9 @@
     <string name="pref_5_min">5 min</string>
     <string name="pref_10_min">10 min</string>
     <string name="pref_15_min">15 min</string>
+    <string name="pref_30_min">30 min</string>
+    <string name="pref_45_min">45 min</string>
+    <string name="pref_60_min">60 min</string>
     <string name="pref_input_design">Input Design</string>
     <string name="pref_default">Default</string>
     <string name="pref_quick_righty">Quick righty</string>

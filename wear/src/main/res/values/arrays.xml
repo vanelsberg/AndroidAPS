@@ -108,6 +108,9 @@
         <item>@string/pref_5_min</item>
         <item>@string/pref_10_min</item>
         <item>@string/pref_15_min</item>
+        <item>@string/pref_30_min</item>
+        <item>@string/pref_45_min</item>
+        <item>@string/pref_60_min</item>
     </string-array>
 
     <string-array name="heartrate_smoothing_values">
@@ -115,6 +118,9 @@
         <item>5</item>
         <item>10</item>
         <item>15</item>
+        <item>30</item>
+        <item>45</item>
+        <item>60</item>
     </string-array>
 
 </resources>
